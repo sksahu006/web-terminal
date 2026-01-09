@@ -27,7 +27,7 @@
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      TRAEFIK REVERSE PROXY                      │
+│                       NGINX REVERSE PROXY                       │
 │              Routes /api/* and /workspace/{user_id}             │
 └─────────────────────────────┬───────────────────────────────────┘
                               │
@@ -94,7 +94,7 @@ The platform provides compute resources. Users bring their own code via GitHub.
 | Backend API | FastAPI (Python) |
 | Container Runtime | Docker |
 | Authentication | JWT + GitHub OAuth |
-| Reverse Proxy | Traefik |
+| Reverse Proxy | Nginx |
 | Database | SQLite |
 | Web Terminal | ttyd |
 | Frontend | Vanilla HTML/CSS/JS |
@@ -202,12 +202,6 @@ User clicks "Start Workspace"
 ┌─────────────────────────┐
 │  Register in database   │
 │  Set expiry time        │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│  Configure Traefik      │
-│  route dynamically      │
 └───────────┬─────────────┘
             │
             ▼

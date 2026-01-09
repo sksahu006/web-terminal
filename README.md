@@ -59,7 +59,7 @@ docker-compose up --build -d
 
 ```
 ┌─────────────────┐     ┌─────────────────┐
-│    Frontend     │────▶│  Traefik Proxy  │
+│    Frontend     │────▶│   Nginx Proxy   │
 │   (nginx)       │     │                 │
 └─────────────────┘     └────────┬────────┘
                                  │
@@ -124,8 +124,7 @@ Admins can adjust limits per user through the admin dashboard.
 ├── frontend/              # Static frontend
 ├── docker/
 │   ├── workspace-image/   # Dev container image
-│   ├── traefik/          # Reverse proxy config
-│   └── nginx/            # Frontend server config
+│   └── nginx/            # Frontend & Proxy config
 ├── docker-compose.yml     # Production config
 └── docker-compose.dev.yml # Development config
 ```

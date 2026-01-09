@@ -1,22 +1,21 @@
 # Virtual Workspace Platform - Docker Compose
-# Production configuration
+# Production configuration with Nginx reverse proxy
 
 services:
-  # Traefik Reverse Proxy
-  traefik:
-    image: traefik:v3.0
-    container_name: workspace-traefik
+  # Nginx Reverse Proxy & Frontend
+  nginx:
+    image: nginx:alpine
+    container_name: workspace-nginx
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
-      - "8080:8080"  # Traefik dashboard
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./docker/nginx/nginx-proxy.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - workspace-network
+    depends_on:
+      - backend
 
   # Backend API
   backend:
@@ -35,28 +34,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - workspace-network
-    depends_on:
-      - traefik
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/workspace`) || PathPrefix(`/docs`) || PathPrefix(`/health`)"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
-
-  # Frontend (static files served by simple HTTP server)
-  frontend:
-    image: nginx:alpine
-    container_name: workspace-frontend
-    restart: unless-stopped
-    volumes:
-      - ./frontend:/usr/share/nginx/html:ro
-      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    networks:
-      - workspace-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.frontend.priority=1"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
 networks:
   workspace-network:

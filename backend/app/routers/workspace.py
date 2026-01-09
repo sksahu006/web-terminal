@@ -3,7 +3,7 @@ Workspace router for managing user workspace lifecycle.
 """
 
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -27,20 +27,27 @@ router = APIRouter(prefix="/workspace", tags=["Workspace"])
 settings = get_settings()
 
 
-def workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
-    """Convert workspace model to response schema."""
+def workspace_to_response(workspace: Workspace, hostname: str = "localhost") -> WorkspaceResponse:
+    """Convert workspace model to response schema with dynamic hostname."""
     time_remaining = None
     if workspace.status == WorkspaceStatus.RUNNING.value:
         remaining = (workspace.expires_at - datetime.utcnow()).total_seconds()
         time_remaining = max(0, int(remaining))
     
+    # Construct dynamic access URL using the request hostname and the assigned container port
+    # accessing access_url from DB might store 'localhost', we want to override the host part
+    access_url = workspace.access_url
+    if workspace.access_port:
+        if hostname:
+            access_url = f"http://{hostname}:{workspace.access_port}"
+        
     return WorkspaceResponse(
         id=workspace.id,
         user_id=workspace.user_id,
         container_id=workspace.container_id,
         container_name=workspace.container_name,
         status=workspace.status,
-        access_url=workspace.access_url,
+        access_url=access_url,
         access_port=workspace.access_port,
         started_at=workspace.started_at,
         expires_at=workspace.expires_at,
@@ -51,6 +58,7 @@ def workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
 
 @router.get("/status", response_model=WorkspaceStatusResponse)
 async def get_workspace_status(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -101,7 +109,7 @@ async def get_workspace_status(
         
         return WorkspaceStatusResponse(
             has_active_workspace=True,
-            workspace=workspace_to_response(workspace),
+            workspace=workspace_to_response(workspace, request.base_url.hostname),
             message="Workspace is running"
         )
     
@@ -115,6 +123,7 @@ async def get_workspace_status(
 @router.post("/start", response_model=WorkspaceStartResponse)
 async def start_workspace(
     request: WorkspaceStartRequest,
+    req: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -168,7 +177,7 @@ async def start_workspace(
     expires_at = datetime.utcnow() + timedelta(seconds=limits.max_runtime)
     
     # Build access URL
-    access_url = f"http://{settings.traefik_domain}:{container_info['access_port']}"
+    access_url = f"http://{settings.proxy_domain}:{container_info['access_port']}"
     
     # Create workspace record
     workspace = Workspace(
@@ -186,9 +195,9 @@ async def start_workspace(
     
     return WorkspaceStartResponse(
         success=True,
-        workspace=workspace_to_response(workspace),
+        workspace=workspace_to_response(workspace, req.base_url.hostname),
         message="Workspace started successfully",
-        access_url=access_url
+        access_url=access_url  # Note: response schema might need this, or component uses workspace object
     )
 
 

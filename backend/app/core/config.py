@@ -62,8 +62,8 @@ class Settings(BaseSettings):
     docker_network: str = "workspace-network"
     workspace_image: str = "workspace-dev:latest"
     
-    # Traefik Settings
-    traefik_domain: str = "localhost"
+    # Proxy Settings
+    proxy_domain: str = "localhost"
 
 
 @lru_cache()

@@ -87,10 +87,8 @@ class ContainerManager:
         # Docker uses nano CPUs (1 CPU = 1e9 nano CPUs)
         nano_cpus = int(limits.cpu * 1e9)
         
-        # Find an available port for ttyd
-        access_port = self._find_available_port()
-        
         # Create container with strict resource limits
+        # We let Docker assign a random available host port by passing None/0
         container = self.client.containers.run(
             image=settings.workspace_image,
             name=container_name,
@@ -98,17 +96,13 @@ class ContainerManager:
             remove=False,  # We'll remove manually after cleanup
             environment=env_vars,
             network=settings.docker_network,
-            ports={"7681/tcp": access_port},  # ttyd port
+            ports={"7681/tcp": None},  # Request random port
             mem_limit=mem_limit,
             nano_cpus=nano_cpus,
-            pids_limit=256,  # Limit number of processes
-            # Security: No privileged access
+            pids_limit=256,
             privileged=False,
-            # Security: Read-only root filesystem with necessary tmpfs
-            read_only=False,  # Need write access for git operations
-            # No persistent volumes - ephemeral only
+            read_only=False,
             volumes={},
-            # Labels for tracking
             labels={
                 "workspace.user_id": user_id,
                 "workspace.type": "ephemeral",
@@ -116,27 +110,19 @@ class ContainerManager:
             }
         )
         
-        logger.info(f"Created container {container_name} for user {user_id}")
+        # Reload container to get the assigned port
+        container.reload()
+        port_bindings = container.attrs["NetworkSettings"]["Ports"]
+        # Format: [{'HostIp': '0.0.0.0', 'HostPort': '32768'}]
+        access_port = int(port_bindings["7681/tcp"][0]["HostPort"])
+        
+        logger.info(f"Created container {container_name} for user {user_id} on port {access_port}")
         
         return {
             "container_id": container.id,
             "container_name": container_name,
             "access_port": access_port,
         }
-    
-    def _find_available_port(self, start_port: int = 10000, end_port: int = 20000) -> int:
-        """Find an available port for container."""
-        import socket
-        
-        for port in range(start_port, end_port):
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.bind(("localhost", port))
-                    return port
-                except OSError:
-                    continue
-        
-        raise RuntimeError("No available ports found")
     
     def get_container_status(self, container_id: str) -> Optional[Dict[str, Any]]:
         """

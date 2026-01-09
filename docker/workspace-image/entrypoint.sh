@@ -53,4 +53,4 @@ if [ -n "$GITHUB_TOKEN" ]; then
 fi
 
 # Start ttyd web terminal
-exec ttyd -W -p 7681 bash
+exec ttyd -W -i 0.0.0.0 -p 7681 bash
