@@ -1,0 +1,48 @@
+# Virtual Workspace Platform - Docker Compose Development
+# Development configuration with hot reloading
+
+services:
+  # Backend API with hot reload
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workspace-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=development
+      - DEBUG=true
+      - DATABASE_URL=sqlite+aiosqlite:///./data/app.db
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - backend-data:/app/data
+      - //var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - workspace-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend development server
+  frontend:
+    image: nginx:alpine
+    container_name: workspace-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - workspace-network
+
+networks:
+  workspace-network:
+    name: workspace-network
+    driver: bridge
+
+volumes:
+  backend-data:
+    name: workspace-backend-data-dev

@@ -1,0 +1,68 @@
+# Virtual Workspace Platform - Docker Compose
+# Production configuration
+
+services:
+  # Traefik Reverse Proxy
+  traefik:
+    image: traefik:v3.0
+    container_name: workspace-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - workspace-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workspace-backend
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=sqlite+aiosqlite:///./data/app.db
+    env_file:
+      - .env
+    volumes:
+      - backend-data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - workspace-network
+    depends_on:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/workspace`) || PathPrefix(`/docs`) || PathPrefix(`/health`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+
+  # Frontend (static files served by simple HTTP server)
+  frontend:
+    image: nginx:alpine
+    container_name: workspace-frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - workspace-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+networks:
+  workspace-network:
+    name: workspace-network
+    driver: bridge
+
+volumes:
+  backend-data:
+    name: workspace-backend-data

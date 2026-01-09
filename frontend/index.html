@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Virtual Workspace Platform - On-demand, ephemeral development environments">
+    <title>Virtual Workspace Platform</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navigation -->
+        <nav class="navbar" id="navbar">
+            <div class="nav-brand">
+                <span class="brand-icon">🚀</span>
+                <span class="brand-text">Workspace Platform</span>
+            </div>
+            <div class="nav-user" id="nav-user">
+                <!-- Populated by JavaScript -->
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Login Section -->
+            <section class="section login-section" id="login-section">
+                <div class="hero">
+                    <div class="hero-content">
+                        <h1 class="hero-title">
+                            <span class="gradient-text">Virtual Workspace</span>
+                            <br>Platform
+                        </h1>
+                        <p class="hero-subtitle">
+                            On-demand, ephemeral development environments.<br>
+                            Secure, isolated, and ready in seconds.
+                        </p>
+                        <div class="hero-features">
+                            <div class="feature">
+                                <span class="feature-icon">⚡</span>
+                                <span>Instant Setup</span>
+                            </div>
+                            <div class="feature">
+                                <span class="feature-icon">🔒</span>
+                                <span>Isolated Containers</span>
+                            </div>
+                            <div class="feature">
+                                <span class="feature-icon">📦</span>
+                                <span>GitHub Integration</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-github" id="btn-login">
+                            <svg class="github-icon" viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/>
+                            </svg>
+                            Login with GitHub
+                        </button>
+                    </div>
+                    <div class="hero-visual">
+                        <div class="code-window">
+                            <div class="window-header">
+                                <span class="dot red"></span>
+                                <span class="dot yellow"></span>
+                                <span class="dot green"></span>
+                            </div>
+                            <div class="window-content">
+                                <pre><code><span class="comment"># Your ephemeral workspace</span>
+<span class="prompt">$</span> git clone https://github.com/you/project.git
+<span class="output">Cloning into 'project'...</span>
+
+<span class="prompt">$</span> cd project && npm install
+<span class="output">Installing dependencies...</span>
+
+<span class="prompt">$</span> npm run dev
+<span class="output">🚀 Server running on port 3000</span></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard Section -->
+            <section class="section dashboard-section hidden" id="dashboard-section">
+                <div class="dashboard-header">
+                    <h2>Your Workspace</h2>
+                    <p class="subtitle" id="user-welcome">Welcome back!</p>
+                </div>
+
+                <!-- Workspace Status Card -->
+                <div class="workspace-card" id="workspace-card">
+                    <div class="card-header">
+                        <h3>Workspace Status</h3>
+                        <span class="status-badge" id="status-badge">Checking...</span>
+                    </div>
+                    <div class="card-body">
+                        <!-- No Workspace State -->
+                        <div id="no-workspace" class="workspace-state">
+                            <div class="state-icon">💤</div>
+                            <p>No active workspace</p>
+                            <button class="btn btn-primary" id="btn-start">
+                                <span class="btn-icon">▶</span>
+                                Start Workspace
+                            </button>
+                        </div>
+
+                        <!-- Starting State -->
+                        <div id="starting-workspace" class="workspace-state hidden">
+                            <div class="loader"></div>
+                            <p>Starting your workspace...</p>
+                        </div>
+
+                        <!-- Running State -->
+                        <div id="running-workspace" class="workspace-state hidden">
+                            <div class="workspace-info">
+                                <div class="info-row">
+                                    <span class="label">Container:</span>
+                                    <span class="value" id="container-name">--</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Time Remaining:</span>
+                                    <span class="value" id="time-remaining">--</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Access URL:</span>
+                                    <a class="value link" id="access-url" href="#" target="_blank">Open Terminal</a>
+                                </div>
+                            </div>
+                            <div class="workspace-actions">
+                                <button class="btn btn-secondary" id="btn-open-terminal">
+                                    <span class="btn-icon">💻</span>
+                                    Open Terminal
+                                </button>
+                                <button class="btn btn-danger" id="btn-stop">
+                                    <span class="btn-icon">⏹</span>
+                                    Stop Workspace
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terminal Embed -->
+                <div class="terminal-container hidden" id="terminal-container">
+                    <div class="terminal-header">
+                        <span>Terminal</span>
+                        <button class="btn-icon-only" id="btn-fullscreen">⛶</button>
+                    </div>
+                    <iframe id="terminal-iframe" class="terminal-iframe" src="" frameborder="0"></iframe>
+                </div>
+
+                <!-- Resource Limits Info -->
+                <div class="info-card" id="limits-card">
+                    <h4>Your Resource Limits</h4>
+                    <div class="limits-grid">
+                        <div class="limit-item">
+                            <span class="limit-icon">🖥️</span>
+                            <span class="limit-value" id="limit-cpu">--</span>
+                            <span class="limit-label">CPU Cores</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-icon">🧠</span>
+                            <span class="limit-value" id="limit-memory">--</span>
+                            <span class="limit-label">Memory</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-icon">💾</span>
+                            <span class="limit-value" id="limit-disk">--</span>
+                            <span class="limit-label">Disk</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-icon">⏱️</span>
+                            <span class="limit-value" id="limit-runtime">--</span>
+                            <span class="limit-label">Max Runtime</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Guide -->
+                <div class="info-card">
+                    <h4>⚠️ Remember: Ephemeral Workspace</h4>
+                    <p class="warning-text">
+                        Your workspace is <strong>temporary</strong>. All files are deleted when the workspace stops.
+                        Always push your changes to GitHub before stopping!
+                    </p>
+                    <div class="quick-steps">
+                        <div class="step">
+                            <span class="step-num">1</span>
+                            <span>Clone your repo: <code>git clone https://github.com/...</code></span>
+                        </div>
+                        <div class="step">
+                            <span class="step-num">2</span>
+                            <span>Make your changes</span>
+                        </div>
+                        <div class="step">
+                            <span class="step-num">3</span>
+                            <span>Push before stopping: <code>git push</code></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Admin Section -->
+            <section class="section admin-section hidden" id="admin-section">
+                <div class="dashboard-header">
+                    <h2>Admin Dashboard</h2>
+                    <p class="subtitle">Manage users and resources</p>
+                </div>
+
+                <!-- Stats Overview -->
+                <div class="stats-grid" id="admin-stats">
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-users">--</span>
+                        <span class="stat-label">Total Users</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-active">--</span>
+                        <span class="stat-label">Active Workspaces</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-today">--</span>
+                        <span class="stat-label">Sessions Today</span>
+                    </div>
+                </div>
+
+                <!-- Users Table -->
+                <div class="table-card">
+                    <h4>Users</h4>
+                    <table class="users-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>GitHub</th>
+                                <th>CPU</th>
+                                <th>Memory</th>
+                                <th>Max Runtime</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toast-container"></div>
+    </div>
+
+    <!-- Edit Limits Modal -->
+    <div class="modal hidden" id="edit-limits-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Resource Limits</h3>
+                <button class="btn-close" id="modal-close">&times;</button>
+            </div>
+            <form id="edit-limits-form">
+                <input type="hidden" id="edit-user-id">
+                <div class="form-group">
+                    <label for="edit-cpu">CPU Cores</label>
+                    <input type="number" id="edit-cpu" step="0.1" min="0.1" max="16">
+                </div>
+                <div class="form-group">
+                    <label for="edit-memory">Memory (MB)</label>
+                    <input type="number" id="edit-memory" min="256" max="32768">
+                </div>
+                <div class="form-group">
+                    <label for="edit-disk">Disk (GB)</label>
+                    <input type="number" id="edit-disk" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="edit-runtime">Max Runtime (seconds)</label>
+                    <input type="number" id="edit-runtime" min="300" max="86400">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
