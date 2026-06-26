@@ -80,3 +80,5 @@ coverage.xml
 *.pem
 *.key
 secrets/
+
+DVWA/

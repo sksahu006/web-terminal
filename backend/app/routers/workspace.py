@@ -109,7 +109,7 @@ async def get_workspace_status(
         
         return WorkspaceStatusResponse(
             has_active_workspace=True,
-            workspace=workspace_to_response(workspace, request.base_url.hostname),
+            workspace=workspace_to_response(workspace, settings.proxy_domain),
             message="Workspace is running"
         )
     
@@ -227,12 +227,6 @@ async def stop_workspace(
         )
     
     container_manager = get_container_manager()
-    had_unsaved_changes = False
-    
-    # Check for unsaved changes unless force stop
-    if not request.force:
-        git_status = container_manager.check_git_status(workspace.container_id)
-        had_unsaved_changes = git_status.get("has_changes", False)
     
     # Update status to stopping
     workspace.status = WorkspaceStatus.STOPPING.value
@@ -247,12 +241,8 @@ async def stop_workspace(
     workspace.stopped_at = datetime.utcnow()
     await db.commit()
     
-    message = "Workspace stopped successfully"
-    if had_unsaved_changes:
-        message += " (Warning: There were uncommitted changes that may be lost)"
-    
     return WorkspaceStopResponse(
         success=True,
-        message=message,
-        had_unsaved_changes=had_unsaved_changes
+        message="Workspace stopped successfully",
+        had_unsaved_changes=False
     )

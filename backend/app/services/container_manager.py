@@ -5,6 +5,7 @@ Handles creation, monitoring, and cleanup of workspace containers.
 
 import asyncio
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
@@ -96,7 +97,7 @@ class ContainerManager:
             remove=False,  # We'll remove manually after cleanup
             environment=env_vars,
             network=settings.docker_network,
-            ports={"7681/tcp": None},  # Request random port
+            ports={"7681/tcp": ("0.0.0.0", None)},  # Random port on all interfaces
             mem_limit=mem_limit,
             nano_cpus=nano_cpus,
             pids_limit=256,
@@ -112,8 +113,15 @@ class ContainerManager:
         
         # Reload container to get the assigned port
         container.reload()
-        port_bindings = container.attrs["NetworkSettings"]["Ports"]
-        # Format: [{'HostIp': '0.0.0.0', 'HostPort': '32768'}]
+        
+        if container.status == "exited":
+            logs = container.logs().decode("utf-8")
+            raise RuntimeError(f"Workspace container failed to start. Logs: {logs}")
+            
+        port_bindings = container.attrs.get("NetworkSettings", {}).get("Ports", {})
+        if not port_bindings or "7681/tcp" not in port_bindings or not port_bindings["7681/tcp"]:
+            raise RuntimeError(f"Port 7681/tcp was not bound. Container status: {container.status}")
+            
         access_port = int(port_bindings["7681/tcp"][0]["HostPort"])
         
         logger.info(f"Created container {container_name} for user {user_id} on port {access_port}")
@@ -123,7 +131,228 @@ class ContainerManager:
             "container_name": container_name,
             "access_port": access_port,
         }
+
+    def create_lab_container(
+        self,
+        user_id: str,
+        room_slug: str,
+        image: str,
+        limits: UserLimits,
+        exposed_port: int = 7681,
+        github_token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a terminal lab container from a lab template image.
+
+        Args:
+            user_id: Unique user identifier
+            room_slug: Slug of the lab room being started
+            image: Docker image to run for this lab
+            limits: User's resource limits
+            exposed_port: Container port that serves the lab access UI
+            github_token: Optional GitHub token for repo access
+
+        Returns:
+            Dict with container_id, container_name, access_port
+        """
+        safe_slug = re.sub(r"[^a-zA-Z0-9_.-]", "-", room_slug)[:32]
+        container_name = f"lab-{user_id[:8]}-{safe_slug}"
+
+        try:
+            existing = self.client.containers.get(container_name)
+            if existing.status == "running":
+                raise ValueError(f"Container {container_name} is already running")
+            existing.remove(force=True)
+        except NotFound:
+            pass
+
+        env_vars = {
+            "USER_ID": user_id,
+            "LAB_ROOM_SLUG": room_slug,
+            "WORKSPACE_TYPE": "lab",
+        }
+
+        if github_token:
+            env_vars["GITHUB_TOKEN"] = github_token
+
+        mem_limit = f"{limits.memory}m"
+        nano_cpus = int(limits.cpu * 1e9)
+        port_key = f"{exposed_port}/tcp"
+
+        container = self.client.containers.run(
+            image=image,
+            name=container_name,
+            detach=True,
+            remove=False,
+            environment=env_vars,
+            network=settings.docker_network,
+            ports={port_key: ("0.0.0.0", None)},  # Random port on all interfaces
+            mem_limit=mem_limit,
+            nano_cpus=nano_cpus,
+            pids_limit=256,
+            privileged=False,
+            read_only=False,
+            # No tty/stdin_open — ttyd manages its own PTY per client connection
+            volumes={},
+            labels={
+                "lab.user_id": user_id,
+                "lab.room_slug": room_slug,
+                "lab.type": "terminal",
+                "lab.created": datetime.utcnow().isoformat(),
+            }
+        )
+
+        import time
+        # Poll until container reaches a stable state
+        # Transient: created, restarting  |  Terminal: running, exited, dead, removing
+        TERMINAL_STATES = {"running", "exited", "dead", "removing"}
+        for attempt in range(10):
+            time.sleep(1)
+            container.reload()
+            logger.info(
+                f"[{attempt+1}/10] Container {container_name} status={container.status}"
+            )
+            if container.status in TERMINAL_STATES:
+                break
+
+        if container.status != "running":
+            logs = container.logs().decode("utf-8", errors="replace")
+            container.remove(force=True)
+            raise RuntimeError(
+                f"Lab container failed to reach running state "
+                f"(status={container.status}). Logs:\n{logs}"
+            )
+
+        port_bindings = container.attrs.get("NetworkSettings", {}).get("Ports", {})
+        if not port_bindings or port_key not in port_bindings or not port_bindings[port_key]:
+            raise RuntimeError(f"Port {port_key} was not bound. Container status: {container.status}")
+
+        access_port = int(port_bindings[port_key][0]["HostPort"])
+
+        logger.info(
+            f"Created lab container {container_name} for user {user_id} "
+            f"room {room_slug} on port {access_port}"
+        )
+
+        return {
+            "container_id": container.id,
+            "container_name": container_name,
+            "access_port": access_port,
+        }
     
+
+    def create_web_target_lab(
+        self,
+        user_id: str,
+        room_slug: str,
+        attacker_image: str,
+        target_image: str,
+        limits: UserLimits,
+        attacker_port: int = 7681,
+        target_port: int = 8000,
+        github_token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a web-target lab: one private target container plus one ttyd attacker container.
+        """
+        safe_slug = re.sub(r"[^a-zA-Z0-9_.-]", "-", room_slug)[:28]
+        prefix = f"lab-{user_id[:8]}-{safe_slug}"
+        attacker_name = f"{prefix}-attacker"
+        target_name = f"{prefix}-target"
+
+        for container_name in [attacker_name, target_name]:
+            try:
+                existing = self.client.containers.get(container_name)
+                if existing.status == "running":
+                    raise ValueError(f"Container {container_name} is already running")
+                existing.remove(force=True)
+            except NotFound:
+                pass
+
+        mem_limit = f"{limits.memory}m"
+        nano_cpus = int(limits.cpu * 1e9)
+
+        target_container = self.client.containers.run(
+            image=target_image,
+            name=target_name,
+            detach=True,
+            remove=False,
+            environment={
+                "LAB_ROOM_SLUG": room_slug,
+                "LAB_TARGET_PORT": str(target_port),
+            },
+            network=settings.docker_network,
+            mem_limit=mem_limit,
+            nano_cpus=nano_cpus,
+            pids_limit=256,
+            privileged=False,
+            read_only=False,
+            volumes={},
+            labels={
+                "lab.user_id": user_id,
+                "lab.room_slug": room_slug,
+                "lab.type": "web-target",
+                "lab.role": "target",
+                "lab.created": datetime.utcnow().isoformat(),
+            }
+        )
+
+        target_url = f"http://{target_name}:{target_port}"
+        env_vars = {
+            "USER_ID": user_id,
+            "LAB_ROOM_SLUG": room_slug,
+            "WORKSPACE_TYPE": "lab",
+            "TARGET_URL": target_url,
+        }
+
+        if github_token:
+            env_vars["GITHUB_TOKEN"] = github_token
+
+        attacker_port_key = f"{attacker_port}/tcp"
+        attacker_container = self.client.containers.run(
+            image=attacker_image,
+            name=attacker_name,
+            detach=True,
+            remove=False,
+            environment=env_vars,
+            network=settings.docker_network,
+            ports={attacker_port_key: None},
+            mem_limit=mem_limit,
+            nano_cpus=nano_cpus,
+            pids_limit=256,
+            privileged=False,
+            read_only=False,
+            volumes={},
+            labels={
+                "lab.user_id": user_id,
+                "lab.room_slug": room_slug,
+                "lab.type": "web-target",
+                "lab.role": "attacker",
+                "lab.created": datetime.utcnow().isoformat(),
+            }
+        )
+
+        attacker_container.reload()
+        
+        if attacker_container.status == "exited":
+            logs = attacker_container.logs().decode("utf-8")
+            raise RuntimeError(f"Attacker container failed to start. Logs: {logs}")
+            
+        port_bindings = attacker_container.attrs.get("NetworkSettings", {}).get("Ports", {})
+        if not port_bindings or attacker_port_key not in port_bindings or not port_bindings[attacker_port_key]:
+            raise RuntimeError(f"Port {attacker_port_key} was not bound. Container status: {attacker_container.status}")
+            
+        access_port = int(port_bindings[attacker_port_key][0]["HostPort"])
+
+        return {
+            "attacker_container_id": attacker_container.id,
+            "attacker_container_name": attacker_name,
+            "target_container_id": target_container.id,
+            "target_container_name": target_name,
+            "access_port": access_port,
+            "target_url": target_url,
+        }
+
     def get_container_status(self, container_id: str) -> Optional[Dict[str, Any]]:
         """
         Get status of a container.
@@ -189,34 +418,6 @@ class ContainerManager:
         except APIError as e:
             logger.error(f"Error removing container: {e}")
             return False
-    
-    def check_git_status(self, container_id: str) -> Dict[str, Any]:
-        """
-        Check if container has uncommitted git changes.
-        
-        Returns:
-            Dict with has_changes and optionally the status output
-        """
-        try:
-            container = self.client.containers.get(container_id)
-            
-            # Run git status in the container
-            exit_code, output = container.exec_run(
-                ["sh", "-c", "cd /workspace && git status --porcelain 2>/dev/null || echo ''"],
-                demux=True
-            )
-            
-            stdout = output[0].decode() if output[0] else ""
-            
-            return {
-                "has_changes": len(stdout.strip()) > 0,
-                "status_output": stdout.strip()
-            }
-        except NotFound:
-            return {"has_changes": False, "status_output": ""}
-        except APIError as e:
-            logger.error(f"Error checking git status: {e}")
-            return {"has_changes": False, "status_output": ""}
     
     def cleanup_expired_containers(self) -> int:
         """

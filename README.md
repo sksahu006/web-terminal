@@ -15,7 +15,6 @@ On-demand, stateless, resource-limited virtual coding workspaces with GitHub-bas
 ### Prerequisites
 
 - Docker & Docker Compose
-- GitHub OAuth App (for authentication)
 
 ### 1. Configure Environment
 
@@ -25,17 +24,31 @@ cp .env.example .env
 ```
 
 Required settings:
-- `GITHUB_CLIENT_ID` - Your GitHub OAuth App client ID
-- `GITHUB_CLIENT_SECRET` - Your GitHub OAuth App client secret
 - `SECRET_KEY` - Random secret for sessions
 - `JWT_SECRET_KEY` - Random secret for JWT tokens
+- `FRONTEND_URL` - Frontend URL, usually `http://localhost:5173`
 
-### 2. Build Workspace Image
+Optional GitHub OAuth settings, only needed if you use `/auth/github`:
+- `GITHUB_CLIENT_ID` - Your GitHub OAuth App client ID
+- `GITHUB_CLIENT_SECRET` - Your GitHub OAuth App client secret
+
+### 2. Build Lab Images
+
+Build the attacker terminal image:
 
 ```bash
 cd docker/workspace-image
 docker build -t workspace-dev:latest .
 ```
+
+Build the starter vulnerable web target image:
+
+```bash
+cd ../labs/web-basics
+docker build -t web-basics-target:latest .
+```
+
+The `web-basics` room starts both images together. The terminal receives `TARGET_URL`, so learners can run commands like `curl $TARGET_URL` from inside the lab.
 
 ### 3. Start the Platform
 
@@ -51,7 +64,7 @@ docker-compose up --build -d
 
 ### 4. Access
 
-- Frontend: http://localhost:3000
+- Frontend: http://localhost:5173
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
@@ -81,10 +94,13 @@ docker-compose up --build -d
 ### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/auth/github` | Start GitHub OAuth flow |
-| GET | `/auth/github/callback` | OAuth callback |
+| POST | `/auth/register` | Create an email/password account |
+| POST | `/auth/login` | Login and receive access/refresh tokens |
+| POST | `/auth/refresh` | Refresh an access token |
 | GET | `/auth/me` | Get current user |
 | POST | `/auth/logout` | Logout |
+| GET | `/auth/github` | Optional GitHub OAuth flow |
+| GET | `/auth/github/callback` | Optional OAuth callback |
 
 ### Workspace
 | Method | Endpoint | Description |
@@ -121,7 +137,7 @@ Admins can adjust limits per user through the admin dashboard.
 │   │   ├── schemas/       # Pydantic schemas
 │   │   └── services/      # Container manager
 │   └── requirements.txt
-├── frontend/              # Static frontend
+├── frontend/              # Vite + React + Tailwind frontend
 ├── docker/
 │   ├── workspace-image/   # Dev container image
 │   └── nginx/            # Frontend & Proxy config
@@ -152,8 +168,19 @@ uvicorn app.main:app --reload
 
 ### Run Frontend Locally
 
-Simply open `frontend/index.html` in a browser, or use a local server.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. Vite proxies backend API calls to `http://localhost:8000`.
 
 ## License
 
 MIT
+
+
+
+
+

@@ -7,6 +7,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -14,17 +15,14 @@ from .config import get_settings
 
 settings = get_settings()
 
-# Ensure data directory exists
 os.makedirs("data", exist_ok=True)
 
-# Create async engine
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
     future=True,
 )
 
-# Create async session factory
 async_session_maker = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -40,9 +38,21 @@ class Base(DeclarativeBase):
 
 
 async def create_db_and_tables():
-    """Create all database tables."""
+    """Create all database tables and add prototype columns for older SQLite DBs."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+        if settings.database_url.startswith("sqlite"):
+            result = await conn.execute(text("PRAGMA table_info(users)"))
+            existing_columns = {row[1] for row in result.fetchall()}
+            local_auth_columns = {
+                "email": "VARCHAR(255)",
+                "username": "VARCHAR(255)",
+                "password_hash": "VARCHAR(255)",
+            }
+            for column_name, column_type in local_auth_columns.items():
+                if column_name not in existing_columns:
+                    await conn.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

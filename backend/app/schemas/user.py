@@ -10,25 +10,68 @@ from pydantic import BaseModel, Field
 
 class UserBase(BaseModel):
     """Base user schema with common fields."""
-    github_username: str
+
+    username: Optional[str] = None
+    email: Optional[str] = None
+    github_username: Optional[str] = None
     avatar_url: Optional[str] = None
 
 
 class UserCreate(UserBase):
-    """Schema for creating a new user (internal use)."""
-    github_id: str
+    """Schema for creating a GitHub user (internal use)."""
+
+    github_id: Optional[str] = None
     github_access_token: Optional[str] = None
+
+
+class UserRegisterRequest(BaseModel):
+    """Email/password registration payload."""
+
+    email: str
+    password: str = Field(min_length=6, max_length=128)
+    username: str = Field(min_length=2, max_length=50)
+
+
+class UserLoginRequest(BaseModel):
+    """Email/password login payload."""
+
+    email: str
+    password: str = Field(min_length=1, max_length=128)
+
+
+class RefreshTokenRequest(BaseModel):
+    """Refresh token payload."""
+
+    refresh_token: str
 
 
 class UserResponse(UserBase):
     """Schema for user response in API."""
+
     id: str
-    github_id: str
+    github_id: Optional[str] = None
     is_admin: bool
     created_at: datetime
     
     class Config:
         from_attributes = True
+
+
+class AuthTokenResponse(BaseModel):
+    """JWT auth response."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+class TokenRefreshResponse(BaseModel):
+    """Refresh response containing a new access token."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
 
 
 class UserWithLimits(UserResponse):
@@ -65,5 +108,5 @@ class UserLimitsResponse(UserLimitsBase):
         from_attributes = True
 
 
-# Update forward references
 UserWithLimits.model_rebuild()
+

@@ -8,8 +8,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import get_settings
-from .core.database import create_db_and_tables
-from .routers import auth, admin, workspace
+from .core.database import create_db_and_tables, get_db_context
+from .routers import auth, admin, labs, workspace
+from .services.seed_labs import seed_default_labs
 
 settings = get_settings()
 
@@ -22,6 +23,8 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     await create_db_and_tables()
+    async with get_db_context() as db:
+        await seed_default_labs(db)
     yield
     # Shutdown
     pass
@@ -49,6 +52,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(workspace.router)
+app.include_router(labs.router)
 
 
 @app.get("/")

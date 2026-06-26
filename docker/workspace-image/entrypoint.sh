@@ -3,54 +3,50 @@
 # Workspace Entry Script
 # Displays welcome message and starts web terminal
 
-# Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Print welcome message
+print_tool_version() {
+    local label="$1"
+    local command_name="$2"
+    shift 2
+
+    if command -v "$command_name" >/dev/null 2>&1; then
+        printf "   - %-8s %s\n" "$label:" "$($command_name "$@" 2>/dev/null | head -n 1)"
+    fi
+}
+
 clear
 echo -e "${GREEN}"
-echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║                                                                  ║"
-echo "║           🚀 Virtual Workspace Platform                          ║"
-echo "║                                                                  ║"
-echo "╚══════════════════════════════════════════════════════════════════╝"
+echo "=================================================================="
+echo "              Virtual Terminal Lab"
+echo "=================================================================="
 echo -e "${NC}"
 
-echo -e "${BLUE}Welcome to your ephemeral development workspace!${NC}"
+echo -e "${BLUE}Welcome to your ephemeral lab workspace.${NC}"
 echo ""
-echo -e "${YELLOW}⚠️  IMPORTANT: This workspace is EPHEMERAL${NC}"
-echo "   All changes will be lost when the workspace stops."
-echo "   Make sure to push your code to GitHub before stopping!"
+echo -e "${YELLOW}IMPORTANT: This workspace is disposable.${NC}"
+echo "   Any files created here are lost when the lab stops."
 echo ""
-echo -e "${GREEN}📋 Quick Start Guide:${NC}"
-echo "   1. Clone your repository:"
-echo "      git clone https://github.com/username/repo.git"
+echo -e "${GREEN}Available tools:${NC}"
+print_tool_version "ttyd" ttyd --version
+print_tool_version "Tree" tree --version
+print_tool_version "Curl" curl --version
+print_tool_version "Wget" wget --version
+
 echo ""
-echo "   2. Make your changes"
-echo ""
-echo "   3. Before stopping, push your changes:"
-echo "      git add . && git commit -m 'message' && git push"
-echo ""
-echo -e "${BLUE}🛠️  Available Tools:${NC}"
-echo "   • Git:     $(git --version)"
-echo "   • Python:  $(python3 --version)"
-echo "   • Node.js: $(node --version)"
-echo "   • npm:     $(npm --version)"
-echo ""
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}Workspace:${NC} /workspace"
 echo ""
 
-# Configure Git with GitHub token if provided
-if [ -n "$GITHUB_TOKEN" ]; then
-    git config --global credential.helper store
-    echo "https://oauth2:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
-    chmod 600 ~/.git-credentials
-    echo -e "${GREEN}✅ GitHub authentication configured${NC}"
-    echo ""
-fi
+# Run ttyd as a background daemon — decoupled from container TTY state
+ttyd --writable --interface 0.0.0.0 -p 7681 bash &
+TTYD_PID=$!
+echo "ttyd started (PID $TTYD_PID)"
 
-# Start ttyd web terminal
-exec ttyd -W -i 0.0.0.0 -p 7681 bash
+# Keep the container alive for exactly as long as ttyd runs
+wait $TTYD_PID
+echo "ttyd exited, container stopping"
+
+
