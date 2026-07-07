@@ -137,7 +137,8 @@ class ContainerManager:
         user_id: str,
         room_slug: str,
         image: str,
-        limits: UserLimits,
+        cpu: float = 0.25,
+        memory: int = 256,
         exposed_port: int = 7681,
         github_token: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -148,7 +149,9 @@ class ContainerManager:
             user_id: Unique user identifier
             room_slug: Slug of the lab room being started
             image: Docker image to run for this lab
-            limits: User's resource limits
+            cpu: CPU limit in cores, from the room's template (a plain shell
+                needs far less than a GUI/VNC-based room)
+            memory: Memory limit in MB, from the room's template
             exposed_port: Container port that serves the lab access UI
             github_token: Optional GitHub token for repo access
 
@@ -175,8 +178,8 @@ class ContainerManager:
         if github_token:
             env_vars["GITHUB_TOKEN"] = github_token
 
-        mem_limit = f"{limits.memory}m"
-        nano_cpus = int(limits.cpu * 1e9)
+        mem_limit = f"{memory}m"
+        nano_cpus = int(cpu * 1e9)
         port_key = f"{exposed_port}/tcp"
 
         container = self.client.containers.run(
@@ -247,18 +250,26 @@ class ContainerManager:
         room_slug: str,
         attacker_image: str,
         target_image: str,
-        limits: UserLimits,
+        attacker_cpu: float = 0.25,
+        attacker_memory: int = 256,
+        target_cpu: float = 0.25,
+        target_memory: int = 256,
         attacker_port: int = 7681,
         target_port: int = 8000,
         github_token: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Create a web-target lab: one private target container plus one ttyd attacker container.
+        Create a web-target lab: one private target container plus one ttyd attacker container,
+        both joined to a dedicated per-session bridge network so no other session's containers
+        can reach this session's target. Attacker and target get independent, minimal resource
+        footprints (the shell is idle most of the time; the target only needs enough for one
+        small Python process).
         """
         safe_slug = re.sub(r"[^a-zA-Z0-9_.-]", "-", room_slug)[:28]
         prefix = f"lab-{user_id[:8]}-{safe_slug}"
         attacker_name = f"{prefix}-attacker"
         target_name = f"{prefix}-target"
+        network_name = f"{prefix}-net"
 
         for container_name in [attacker_name, target_name]:
             try:
@@ -269,33 +280,52 @@ class ContainerManager:
             except NotFound:
                 pass
 
-        mem_limit = f"{limits.memory}m"
-        nano_cpus = int(limits.cpu * 1e9)
+        try:
+            self.client.networks.get(network_name).remove()
+        except NotFound:
+            pass
 
-        target_container = self.client.containers.run(
-            image=target_image,
-            name=target_name,
-            detach=True,
-            remove=False,
-            environment={
-                "LAB_ROOM_SLUG": room_slug,
-                "LAB_TARGET_PORT": str(target_port),
-            },
-            network=settings.docker_network,
-            mem_limit=mem_limit,
-            nano_cpus=nano_cpus,
-            pids_limit=256,
-            privileged=False,
-            read_only=False,
-            volumes={},
+        session_network = self.client.networks.create(
+            network_name,
+            driver="bridge",
             labels={
                 "lab.user_id": user_id,
                 "lab.room_slug": room_slug,
-                "lab.type": "web-target",
-                "lab.role": "target",
-                "lab.created": datetime.utcnow().isoformat(),
-            }
+                "lab.type": "web-target-session",
+            },
         )
+
+        target_mem_limit = f"{target_memory}m"
+        target_nano_cpus = int(target_cpu * 1e9)
+
+        try:
+            target_container = self.client.containers.run(
+                image=target_image,
+                name=target_name,
+                detach=True,
+                remove=False,
+                environment={
+                    "LAB_ROOM_SLUG": room_slug,
+                    "LAB_TARGET_PORT": str(target_port),
+                },
+                network=network_name,
+                mem_limit=target_mem_limit,
+                nano_cpus=target_nano_cpus,
+                pids_limit=128,
+                privileged=False,
+                read_only=False,
+                volumes={},
+                labels={
+                    "lab.user_id": user_id,
+                    "lab.room_slug": room_slug,
+                    "lab.type": "web-target",
+                    "lab.role": "target",
+                    "lab.created": datetime.utcnow().isoformat(),
+                }
+            )
+        except Exception:
+            self._remove_network_quietly(network_name)
+            raise
 
         target_url = f"http://{target_name}:{target_port}"
         env_vars = {
@@ -309,40 +339,75 @@ class ContainerManager:
             env_vars["GITHUB_TOKEN"] = github_token
 
         attacker_port_key = f"{attacker_port}/tcp"
-        attacker_container = self.client.containers.run(
-            image=attacker_image,
-            name=attacker_name,
-            detach=True,
-            remove=False,
-            environment=env_vars,
-            network=settings.docker_network,
-            ports={attacker_port_key: None},
-            mem_limit=mem_limit,
-            nano_cpus=nano_cpus,
-            pids_limit=256,
-            privileged=False,
-            read_only=False,
-            volumes={},
-            labels={
-                "lab.user_id": user_id,
-                "lab.room_slug": room_slug,
-                "lab.type": "web-target",
-                "lab.role": "attacker",
-                "lab.created": datetime.utcnow().isoformat(),
-            }
-        )
+        attacker_mem_limit = f"{attacker_memory}m"
+        attacker_nano_cpus = int(attacker_cpu * 1e9)
 
-        attacker_container.reload()
-        
-        if attacker_container.status == "exited":
-            logs = attacker_container.logs().decode("utf-8")
-            raise RuntimeError(f"Attacker container failed to start. Logs: {logs}")
-            
-        port_bindings = attacker_container.attrs.get("NetworkSettings", {}).get("Ports", {})
-        if not port_bindings or attacker_port_key not in port_bindings or not port_bindings[attacker_port_key]:
-            raise RuntimeError(f"Port {attacker_port_key} was not bound. Container status: {attacker_container.status}")
-            
-        access_port = int(port_bindings[attacker_port_key][0]["HostPort"])
+        try:
+            attacker_container = self.client.containers.run(
+                image=attacker_image,
+                name=attacker_name,
+                detach=True,
+                remove=False,
+                environment=env_vars,
+                network=network_name,
+                ports={attacker_port_key: None},
+                mem_limit=attacker_mem_limit,
+                nano_cpus=attacker_nano_cpus,
+                pids_limit=128,
+                privileged=False,
+                read_only=False,
+                volumes={},
+                labels={
+                    "lab.user_id": user_id,
+                    "lab.room_slug": room_slug,
+                    "lab.type": "web-target",
+                    "lab.role": "attacker",
+                    "lab.created": datetime.utcnow().isoformat(),
+                }
+            )
+
+            import time as _time
+            # Reaching "running" only means the container process started; the
+            # entrypoint's background ttyd/http server needs a moment after that
+            # to actually bind its port. Without this, the frontend's iframe can
+            # hit the freshly-assigned host port before anything is listening and
+            # get an empty response, even though the same URL works a few
+            # seconds later.
+            TERMINAL_STATES = {"running", "exited", "dead", "removing"}
+            for attempt in range(10):
+                _time.sleep(1)
+                attacker_container.reload()
+                if attacker_container.status in TERMINAL_STATES:
+                    break
+
+            if attacker_container.status == "exited":
+                logs = attacker_container.logs().decode("utf-8")
+                raise RuntimeError(f"Attacker container failed to start. Logs: {logs}")
+
+            if attacker_container.status != "running":
+                logs = attacker_container.logs().decode("utf-8", errors="replace")
+                raise RuntimeError(
+                    f"Attacker container failed to reach running state "
+                    f"(status={attacker_container.status}). Logs:\n{logs}"
+                )
+
+            port_bindings = attacker_container.attrs.get("NetworkSettings", {}).get("Ports", {})
+            if not port_bindings or attacker_port_key not in port_bindings or not port_bindings[attacker_port_key]:
+                raise RuntimeError(f"Port {attacker_port_key} was not bound. Container status: {attacker_container.status}")
+
+            access_port = int(port_bindings[attacker_port_key][0]["HostPort"])
+        except Exception as e:
+            logger.error(f"Failed to start attacker container for user {user_id}, cleaning up target container and network: {e}")
+            try:
+                target_container.remove(force=True)
+            except Exception:
+                pass
+            try:
+                self.client.containers.get(attacker_name).remove(force=True)
+            except Exception:
+                pass
+            self._remove_network_quietly(network_name)
+            raise e
 
         return {
             "attacker_container_id": attacker_container.id,
@@ -351,7 +416,34 @@ class ContainerManager:
             "target_container_name": target_name,
             "access_port": access_port,
             "target_url": target_url,
+            "network_name": network_name,
         }
+
+    def _remove_network_quietly(self, network_name: str) -> None:
+        """Best-effort removal of a per-session network; swallows all errors."""
+        try:
+            self.client.networks.get(network_name).remove()
+        except Exception:
+            pass
+
+    def remove_session_network(self, network_name: Optional[str]) -> bool:
+        """
+        Remove a per-session Docker network, e.g. after both its containers have
+        been removed on session stop/cleanup. Safe to call with None or an
+        already-removed network name.
+        """
+        if not network_name:
+            return True
+        try:
+            network = self.client.networks.get(network_name)
+            network.remove()
+            logger.info(f"Removed session network {network_name}")
+            return True
+        except NotFound:
+            return True
+        except APIError as e:
+            logger.error(f"Error removing session network {network_name}: {e}")
+            return False
 
     def get_container_status(self, container_id: str) -> Optional[Dict[str, Any]]:
         """

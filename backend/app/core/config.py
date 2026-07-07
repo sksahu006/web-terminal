@@ -52,10 +52,10 @@ class Settings(BaseSettings):
             return []
         return [u.strip() for u in self.admin_github_usernames.split(",") if u.strip()]
     
-    # Container Defaults
-    default_cpu_limit: float = 1.0
-    default_memory_limit: int = 1024  # MB
-    default_disk_limit: int = 5  # GB
+    # Container Defaults (kept minimal for single-EC2-instance prototype deployments)
+    default_cpu_limit: float = 0.5
+    default_memory_limit: int = 512  # MB
+    default_disk_limit: int = 2  # GB
     default_max_runtime: int = 3600  # seconds
     
     # Docker Settings

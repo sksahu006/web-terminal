@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.models.lab import (
     Challenge,
@@ -23,13 +24,15 @@ class FakeContainerManager:
         self.stopped = []
         self.removed = []
         self.statuses = {}
+        self.removed_networks = []
 
     def create_lab_container(
         self,
         user_id,
         room_slug,
         image,
-        limits,
+        cpu=0.25,
+        memory=256,
         exposed_port=7681,
         github_token=None,
     ):
@@ -38,8 +41,8 @@ class FakeContainerManager:
                 "user_id": user_id,
                 "room_slug": room_slug,
                 "image": image,
-                "memory": limits.memory,
-                "cpu": limits.cpu,
+                "memory": memory,
+                "cpu": cpu,
                 "exposed_port": exposed_port,
                 "github_token": github_token,
             }
@@ -59,6 +62,10 @@ class FakeContainerManager:
 
     def remove_container(self, container_id, force=True):
         self.removed.append({"container_id": container_id, "force": force})
+        return True
+
+    def remove_session_network(self, network_name):
+        self.removed_networks.append(network_name)
         return True
 
 
@@ -167,14 +174,32 @@ async def test_seed_default_labs_is_idempotent(db_session):
     await seed_default_labs(db_session)
     await seed_default_labs(db_session)
 
-    linux_result = await db_session.execute(select(Room).where(Room.slug == "linux-basics"))
+    linux_result = await db_session.execute(
+        select(Room)
+        .options(selectinload(Room.template), selectinload(Room.challenges))
+        .where(Room.slug == "linux-basics")
+    )
     linux_rooms = linux_result.scalars().all()
-    web_result = await db_session.execute(select(Room).where(Room.slug == "web-basics"))
+    web_result = await db_session.execute(
+        select(Room)
+        .options(selectinload(Room.template), selectinload(Room.challenges))
+        .where(Room.slug == "web-basics")
+    )
     web_rooms = web_result.scalars().all()
 
     assert len(linux_rooms) == 1
     assert linux_rooms[0].title == "Linux Basics"
     assert linux_rooms[0].template.access_mode == "terminal"
+
+    browser_result = await db_session.execute(
+        select(Room)
+        .options(selectinload(Room.template))
+        .where(Room.slug == "browser-desktop")
+    )
+    browser_rooms = browser_result.scalars().all()
+    assert len(browser_rooms) == 1
+    assert browser_rooms[0].template.attacker_cpu == 1.0
+    assert browser_rooms[0].template.attacker_memory == 1024
 
     assert len(web_rooms) == 1
     assert web_rooms[0].title == "Web Basics"
@@ -185,8 +210,143 @@ async def test_seed_default_labs_is_idempotent(db_session):
         "Find the Debug Flag",
     ]
 
+    for slug, title, image, flags in [
+        (
+            "sql-injection",
+            "SQL Injection",
+            "workspace-dev:latest|sql-injection-target:latest",
+            ["flag{sql_login_bypassed}", "flag{sql_union_extracted}"],
+        ),
+        (
+            "command-injection",
+            "Command Injection",
+            "workspace-dev:latest|command-injection-target:latest",
+            ["flag{command_injection_pwned}"],
+        ),
+        (
+            "xss-reflected",
+            "Reflected XSS",
+            "workspace-dev:latest|xss-reflected-target:latest",
+            ["flag{reflected_xss_confirmed}"],
+        ),
+        (
+            "xss-stored",
+            "Stored XSS",
+            "workspace-dev:latest|xss-stored-target:latest",
+            ["flag{stored_xss_admin_pwned}"],
+        ),
+        (
+            "file-upload",
+            "Unrestricted File Upload",
+            "workspace-dev:latest|file-upload-target:latest",
+            ["flag{unrestricted_upload_rce}"],
+        ),
+        (
+            "sql-injection-blind",
+            "SQL Injection (Blind)",
+            "workspace-dev:latest|sql-injection-blind-target:latest",
+            ["flag{blind_boolean_extracted}", "flag{blind_time_extracted}"],
+        ),
+        (
+            "csrf",
+            "Cross-Site Request Forgery",
+            "workspace-dev:latest|csrf-target:latest",
+            ["flag{csrf_password_changed}"],
+        ),
+        (
+            "broken-access-control",
+            "Broken Access Control",
+            "workspace-dev:latest|broken-access-control-target:latest",
+            ["flag{broken_access_control_idor}"],
+        ),
+        (
+            "weak-session-ids",
+            "Weak Session IDs",
+            "workspace-dev:latest|weak-session-ids-target:latest",
+            ["flag{weak_session_hijacked}"],
+        ),
+        (
+            "open-redirect",
+            "Open Redirect",
+            "workspace-dev:latest|open-redirect-target:latest",
+            ["flag{open_redirect_exploited}"],
+        ),
+        (
+            "file-inclusion",
+            "Local File Inclusion",
+            "workspace-dev:latest|file-inclusion-target:latest",
+            ["flag{local_file_included}"],
+        ),
+        (
+            "xss-dom",
+            "DOM-Based XSS",
+            "workspace-dev:latest|xss-dom-target:latest",
+            ["flag{dom_xss_confirmed}"],
+        ),
+        (
+            "csp-bypass",
+            "Content-Security-Policy Bypass",
+            "workspace-dev:latest|csp-bypass-target:latest",
+            ["flag{csp_bypass_data_uri}"],
+        ),
+        (
+            "brute-force",
+            "Brute Force",
+            "workspace-dev:latest|brute-force-target:latest",
+            ["flag{brute_force_no_lockout}"],
+        ),
+        (
+            "auth-bypass",
+            "Authentication Bypass",
+            "workspace-dev:latest|auth-bypass-target:latest",
+            ["flag{auth_bypass_trusted_cookie}"],
+        ),
+        (
+            "captcha-bypass",
+            "CAPTCHA Bypass",
+            "workspace-dev:latest|captcha-bypass-target:latest",
+            ["flag{captcha_bypass_no_verification}"],
+        ),
+        (
+            "javascript-obfuscation",
+            "JavaScript Obfuscation",
+            "workspace-dev:latest|javascript-obfuscation-target:latest",
+            ["flag{js_obfuscation_deobfuscated}"],
+        ),
+        (
+            "cryptography",
+            "Cryptography",
+            "workspace-dev:latest|cryptography-target:latest",
+            ["flag{cryptography_weak_hash_cracked}"],
+        ),
+        (
+            "api-abuse",
+            "API Abuse (Mass Assignment)",
+            "workspace-dev:latest|api-abuse-target:latest",
+            ["flag{api_mass_assignment_privilege_escalation}"],
+        ),
+        (
+            "info-disclosure",
+            "Information Disclosure",
+            "workspace-dev:latest|info-disclosure-target:latest",
+            ["flag{info_disclosure_backup_leaked}"],
+        ),
+    ]:
+        result = await db_session.execute(
+            select(Room)
+            .options(selectinload(Room.template), selectinload(Room.challenges))
+            .where(Room.slug == slug)
+        )
+        rooms = result.scalars().all()
+        assert len(rooms) == 1
+        assert rooms[0].title == title
+        assert rooms[0].template.access_mode == "web_target"
+        assert rooms[0].template.image == image
+        assert rooms[0].template.target_port == 8000
+        assert [challenge.flag for challenge in rooms[0].challenges] == flags
 
-async def test_start_room_uses_template_image_and_user_limits(client, db_session, current_user):
+
+async def test_start_room_uses_template_image_and_resources(client, db_session, current_user):
     fake_manager = FakeContainerManager()
     app.dependency_overrides[get_lab_container_manager] = lambda: fake_manager
 
@@ -195,6 +355,8 @@ async def test_start_room_uses_template_image_and_user_limits(client, db_session
         access_mode=LabAccessMode.TERMINAL.value,
         image="custom-terminal:latest",
         default_port=9000,
+        attacker_cpu=0.75,
+        attacker_memory=768,
     )
     room = Room(
         slug="custom-terminal",
@@ -215,8 +377,8 @@ async def test_start_room_uses_template_image_and_user_limits(client, db_session
             "user_id": current_user.id,
             "room_slug": "custom-terminal",
             "image": "custom-terminal:latest",
-            "memory": 1024,
-            "cpu": 1.0,
+            "memory": 768,
+            "cpu": 0.75,
             "exposed_port": 9000,
             "github_token": None,
         }
@@ -373,7 +535,6 @@ async def test_stop_lab_session_stops_container_and_marks_session_stopped(client
     assert response.status_code == 200
     assert response.json()["success"] is True
     assert response.json()["message"] == "Lab session stopped successfully"
-    assert fake_manager.stopped == [{"container_id": "container-123", "timeout": 10}]
     assert fake_manager.removed == [{"container_id": "container-123", "force": True}]
     await db_session.refresh(session)
     assert session.status == LabSessionStatus.STOPPED.value
@@ -572,7 +733,10 @@ async def test_start_web_target_room_launches_attacker_and_target(client, db_ses
             room_slug,
             attacker_image,
             target_image,
-            limits,
+            attacker_cpu=0.25,
+            attacker_memory=256,
+            target_cpu=0.25,
+            target_memory=256,
             attacker_port=7681,
             target_port=8000,
             github_token=None,
@@ -583,10 +747,12 @@ async def test_start_web_target_room_launches_attacker_and_target(client, db_ses
                     "room_slug": room_slug,
                     "attacker_image": attacker_image,
                     "target_image": target_image,
+                    "attacker_cpu": attacker_cpu,
+                    "attacker_memory": attacker_memory,
+                    "target_cpu": target_cpu,
+                    "target_memory": target_memory,
                     "attacker_port": attacker_port,
                     "target_port": target_port,
-                    "memory": limits.memory,
-                    "cpu": limits.cpu,
                     "github_token": github_token,
                 }
             )
@@ -597,6 +763,7 @@ async def test_start_web_target_room_launches_attacker_and_target(client, db_ses
                 "target_container_name": "lab-web-basics-target",
                 "access_port": 32769,
                 "target_url": "http://lab-web-basics-target:8000",
+                "network_name": "lab-web-basics-net",
             }
 
     fake_manager = FakeWebTargetManager()
@@ -633,10 +800,12 @@ async def test_start_web_target_room_launches_attacker_and_target(client, db_ses
             "room_slug": "web-basics",
             "attacker_image": "workspace-dev:latest",
             "target_image": "web-basics-target:latest",
+            "attacker_cpu": 0.25,
+            "attacker_memory": 256,
+            "target_cpu": 0.25,
+            "target_memory": 256,
             "attacker_port": 7681,
             "target_port": 8000,
-            "memory": 1024,
-            "cpu": 1.0,
             "github_token": None,
         }
     ]
@@ -675,12 +844,45 @@ async def test_stop_web_target_room_removes_attacker_and_target(client, db_sessi
     response = await client.post(f"/labs/sessions/{session.id}/stop")
 
     assert response.status_code == 200
-    assert fake_manager.stopped == [
-        {"container_id": "attacker-123", "timeout": 10},
-        {"container_id": "target-123", "timeout": 10},
-    ]
     assert fake_manager.removed == [
         {"container_id": "attacker-123", "force": True},
         {"container_id": "target-123", "force": True},
     ]
+
+
+async def test_stop_web_target_room_removes_session_network(client, db_session, current_user):
+    fake_manager = FakeContainerManager()
+    app.dependency_overrides[get_lab_container_manager] = lambda: fake_manager
+
+    template = LabTemplate(
+        name="Web Target Basics",
+        access_mode=LabAccessMode.WEB_TARGET.value,
+        image="workspace-dev:latest|web-basics-target:latest",
+    )
+    room = Room(
+        slug="web-basics",
+        title="Web Basics",
+        difficulty="easy",
+        description="Attack a tiny vulnerable web target.",
+        is_published=True,
+        template=template,
+    )
+    db_session.add(room)
+    await db_session.flush()
+    session = LabSession(
+        user_id=current_user.id,
+        room_id=room.id,
+        status=LabSessionStatus.RUNNING.value,
+        access_mode=LabAccessMode.WEB_TARGET.value,
+        attacker_container_id="attacker-123",
+        target_container_ids="target-123",
+        docker_network="lab-web-basics-net",
+    )
+    db_session.add(session)
+    await db_session.commit()
+
+    response = await client.post(f"/labs/sessions/{session.id}/stop")
+
+    assert response.status_code == 200
+    assert fake_manager.removed_networks == ["lab-web-basics-net"]
 

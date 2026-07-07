@@ -5,10 +5,13 @@ Lab catalog and session models for challenge rooms.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:
+    from .user import User
 
 from ..core.database import Base
 
@@ -47,6 +50,14 @@ class LabTemplate(Base):
     image: Mapped[str] = mapped_column(String(255), nullable=False)
     startup_command: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     default_port: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Internal port the target container listens on (WEB_TARGET labs only).
+    target_port: Mapped[int] = mapped_column(Integer, default=8000, nullable=False)
+    # Minimal per-container resource footprint, tuned independently for the
+    # ttyd attacker shell (light) vs. the vulnerable target app (light-to-moderate).
+    attacker_cpu: Mapped[float] = mapped_column(Float, default=0.25, nullable=False)
+    attacker_memory: Mapped[int] = mapped_column(Integer, default=256, nullable=False)
+    target_cpu: Mapped[float] = mapped_column(Float, default=0.25, nullable=False)
+    target_memory: Mapped[int] = mapped_column(Integer, default=256, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now(),
@@ -172,6 +183,10 @@ class LabSession(Base):
     )
     access_mode: Mapped[str] = mapped_column(String(30), nullable=False)
     network_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    # Dedicated Docker bridge network isolating this session's attacker+target
+    # pair from every other session (WEB_TARGET labs only). None for TERMINAL labs,
+    # which share the flat workspace network since there's no private target to protect.
+    docker_network: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     attacker_container_id: Mapped[Optional[str]] = mapped_column(
         String(64),
         nullable=True,
@@ -179,6 +194,11 @@ class LabSession(Base):
     target_container_ids: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     access_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     started_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
+    )
+    last_active: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now(),
         nullable=False,

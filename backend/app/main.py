@@ -3,6 +3,7 @@ Virtual Workspace Platform - FastAPI Application
 Main entry point for the backend API.
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,7 @@ from .core.config import get_settings
 from .core.database import create_db_and_tables, get_db_context
 from .routers import auth, admin, labs, workspace
 from .services.seed_labs import seed_default_labs
+from .services.cleanup import start_periodic_cleanup_task
 
 settings = get_settings()
 
@@ -25,9 +27,17 @@ async def lifespan(app: FastAPI):
     await create_db_and_tables()
     async with get_db_context() as db:
         await seed_default_labs(db)
+        
+    cleanup_task = await start_periodic_cleanup_task()
+    
     yield
+    
     # Shutdown
-    pass
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(

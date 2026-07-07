@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Workspace Platform - System Architecture</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b',
+                            950: '#0b1329',
+                        },
+                        brand: {
+                            primary: '#6366f1', // Indigo
+                            secondary: '#06b6d4', // Cyan
+                            purple: '#a855f7',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;750&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        .glass {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-indigo:hover {
+            box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.4);
+        }
+        .glow-cyan:hover {
+            box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.4);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+        }
+        .pulse-effect {
+            animation: pulse-slow 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans selection:bg-brand-primary selection:text-white antialiased min-h-screen">
+
+    <!-- Background Decoration -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-brand-primary/10 blur-[120px] pulse-effect"></div>
+        <div class="absolute -bottom-[40%] -right-[20%] w-[80%] h-[80%] rounded-full bg-brand-secondary/10 blur-[120px] pulse-effect" style="animation-delay: 1.5s;"></div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-50 glass border-b border-slate-800 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-brand-primary to-brand-secondary flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">Virtual Workspace Platform</h1>
+                    <p class="text-xs text-brand-secondary font-mono tracking-wider uppercase">System Architecture Blueprint</p>
+                </div>
+            </div>
+            <nav class="flex items-center space-x-1 bg-slate-900/60 p-1.5 rounded-lg border border-slate-800">
+                <button onclick="switchTab('blueprint')" id="tab-blueprint" class="tab-btn px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 bg-brand-primary text-white shadow-md">
+                    System Blueprint
+                </button>
+                <button onclick="switchTab('database')" id="tab-database" class="tab-btn px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white">
+                    Database Schema
+                </button>
+                <button onclick="switchTab('endpoints')" id="tab-endpoints" class="tab-btn px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white">
+                    API Endpoints
+                </button>
+                <button onclick="switchTab('lifecycle')" id="tab-lifecycle" class="tab-btn px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white">
+                    Container Lifecycle
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-6 py-8 relative z-10">
+
+        <!-- TAB: SYSTEM BLUEPRINT -->
+        <section id="section-blueprint" class="tab-section space-y-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Interactive SVG Map -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="glass rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                        <div class="absolute top-4 right-4 flex items-center space-x-2">
+                            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span class="text-xs font-mono text-slate-400">Interactive Blueprint</span>
+                        </div>
+                        <h2 class="text-lg font-bold mb-4 text-slate-100 flex items-center gap-2">
+                            <svg class="h-5 w-5 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                            </svg>
+                            Component Connectivity
+                        </h2>
+                        
+                        <!-- Interactive SVG Diagram -->
+                        <div class="w-full bg-slate-900/40 rounded-xl border border-slate-800 p-2 overflow-x-auto">
+                            <svg viewBox="0 0 850 560" class="w-full min-w-[750px] h-auto drop-shadow-md select-none" id="architecture-svg">
+                                <!-- Definitions -->
+                                <defs>
+                                    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#3b82f6" />
+                                        <stop offset="100%" stop-color="#1d4ed8" />
+                                    </linearGradient>
+                                    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#8b5cf6" />
+                                        <stop offset="100%" stop-color="#6d28d9" />
+                                    </linearGradient>
+                                    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#06b6d4" />
+                                        <stop offset="100%" stop-color="#0891b2" />
+                                    </linearGradient>
+                                    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#10b981" />
+                                        <stop offset="100%" stop-color="#047857" />
+                                    </linearGradient>
+                                    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#f59e0b" />
+                                        <stop offset="100%" stop-color="#b45309" />
+                                    </linearGradient>
+                                </defs>
+
+                                <!-- Grid pattern for blueprint look -->
+                                <rect width="850" height="560" fill="none" />
+                                
+                                <!-- Connection Lines -->
+                                <!-- Frontend -> Nginx -->
+                                <path d="M190,100 L300,100" stroke="#475569" stroke-width="2.5" stroke-dasharray="6,4" fill="none" />
+                                <!-- Nginx -> Backend -->
+                                <path d="M460,100 L560,100" stroke="#475569" stroke-width="2.5" stroke-dasharray="6,4" fill="none" />
+                                <!-- Nginx -> Container Port (Proxy bypass or direct connect) -->
+                                <path d="M380,140 L380,240" stroke="#334155" stroke-width="2" fill="none" />
+                                <path d="M380,240 L190,290" stroke="#334155" stroke-width="2" stroke-dasharray="4,4" fill="none" />
+                                <!-- Backend -> SQLite -->
+                                <path d="M660,140 L660,250" stroke="#6366f1" stroke-width="2.5" fill="none" marker-end="url(#arrow)" />
+                                <!-- Backend -> Docker Socket -->
+                                <path d="M660,60 L660,20 L480,20 L480,310 L500,310" stroke="#06b6d4" stroke-width="2" fill="none" />
+                                <!-- Docker Socket -> Attacker / Target -->
+                                <path d="M570,360 L570,410" stroke="#06b6d4" stroke-width="2.5" fill="none" />
+                                <!-- Attacker <-> Target network -->
+                                <path d="M300,460 L440,460" stroke="#10b981" stroke-width="3" fill="none" />
+                                
+                                <!-- Node: Client Browser / Frontend (Clickable) -->
+                                <g class="cursor-pointer group" onclick="selectNode('frontend')">
+                                    <rect x="30" y="50" width="160" height="100" rx="10" fill="url(#blueGrad)" stroke="#3b82f6" stroke-width="2" />
+                                    <text x="110" y="85" fill="#ffffff" font-size="15" font-weight="bold" text-anchor="middle">SPA Frontend</text>
+                                    <text x="110" y="105" fill="#bfdbfe" font-size="11" font-family="monospace" text-anchor="middle">React + Vite + TW4</text>
+                                    <text x="110" y="125" fill="#93c5fd" font-size="10" text-anchor="middle">Dashboard / Terminal UI</text>
+                                </g>
+
+                                <!-- Node: Nginx Proxy (Clickable) -->
+                                <g class="cursor-pointer group" onclick="selectNode('nginx')">
+                                    <rect x="300" y="50" width="160" height="90" rx="10" fill="url(#greenGrad)" stroke="#10b981" stroke-width="2" />
+                                    <text x="380" y="85" fill="#ffffff" font-size="15" font-weight="bold" text-anchor="middle">Nginx Proxy</text>
+                                    <text x="380" y="105" fill="#a7f3d0" font-size="11" font-family="monospace" text-anchor="middle">Reverse Proxy</text>
+                                    <text x="380" y="122" fill="#6ee7b7" font-size="10" text-anchor="middle">Routing /api/* & Static</text>
+                                </g>
+
+                                <!-- Node: FastAPI Backend (Clickable) -->
+                                <g class="cursor-pointer group" onclick="selectNode('backend')">
+                                    <rect x="560" y="50" width="200" height="90" rx="10" fill="url(#purpleGrad)" stroke="#8b5cf6" stroke-width="2" />
+                                    <text x="660" y="85" fill="#ffffff" font-size="15" font-weight="bold" text-anchor="middle">FastAPI Backend</text>
+                                    <text x="660" y="105" fill="#ddd6fe" font-size="11" font-family="monospace" text-anchor="middle">Uvicorn + SQLModel</text>
+                                    <text x="660" y="122" fill="#c4b5fd" font-size="10" text-anchor="middle">Auth, APIs, Docker Manager</text>
+                                </g>
+
+                                <!-- Node: SQLite database (Clickable) -->
+                                <g class="cursor-pointer group" onclick="selectNode('database')">
+                                    <rect x="580" y="220" width="160" height="70" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="2" />
+                                    <text x="660" y="248" fill="#ffffff" font-size="14" font-weight="bold" text-anchor="middle">SQLite Database</text>
+                                    <text x="660" y="268" fill="#94a3b8" font-size="10" font-family="monospace" text-anchor="middle">data/app.db (aiosqlite)</text>
+                                </g>
+
+                                <!-- Node: Docker Socket (Clickable) -->
+                                <g class="cursor-pointer group" onclick="selectNode('dockersock')">
+                                    <rect x="500" y="320" width="220" height="50" rx="6" fill="url(#cyanGrad)" stroke="#06b6d4" stroke-width="1.5" />
+                                    <text x="610" y="342" fill="#ffffff" font-size="12" font-family="monospace" font-weight="bold" text-anchor="middle">/var/run/docker.sock</text>
+                                    <text x="610" y="358" fill="#cffafe" font-size="10" text-anchor="middle">Mounted Docker API Access</text>
+                                </g>
+
+                                <!-- Bordered Container: Sibling User Container Sandbox -->
+                                <rect x="30" y="220" width="410" height="310" rx="12" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="8,4" />
+                                <text x="45" y="242" fill="#94a3b8" font-size="12" font-weight="bold" font-family="monospace">DOCKER ENGINE (PER-SESSION NETWORKS)</text>
+
+                                <!-- Node: User Workspace container (ttyd/bash) (Clickable) -->
+                                <g class="cursor-pointer group" onclick="selectNode('workspace')">
+                                    <rect x="50" y="260" width="370" height="70" rx="10" fill="url(#blueGrad)" stroke="#2563eb" stroke-width="2" />
+                                    <text x="235" y="288" fill="#ffffff" font-size="14" font-weight="bold" text-anchor="middle">Workspace Container (Standard)</text>
+                                    <text x="235" y="308" fill="#93c5fd" font-size="11" font-family="monospace" text-anchor="middle">workspace-dev:latest (ttyd port 7681 -> Host port)</text>
+                                </g>
+
+                                <!-- Node: Attacker Lab Container (Clickable) -->
+                                <g class="cursor-pointer group" onclick="selectNode('attacker')">
+                                    <rect x="50" y="420" width="210" height="85" rx="10" fill="url(#amberGrad)" stroke="#d97706" stroke-width="2" />
+                                    <text x="155" y="448" fill="#ffffff" font-size="13" font-weight="bold" text-anchor="middle">Lab Attacker Container</text>
+                                    <text x="155" y="468" fill="#fde68a" font-size="10" font-family="monospace" text-anchor="middle">ttyd terminal / noVNC GUI</text>
+                                    <text x="155" y="485" fill="#fcd34d" font-size="9" text-anchor="middle">Spawns with $TARGET_URL env</text>
+                                </g>
+
+                                <!-- Node: Target Lab Container (Clickable) -->
+                                <g class="cursor-pointer group" onclick="selectNode('target')">
+                                    <rect x="250" y="420" width="170" height="85" rx="10" fill="#9f1239" stroke="#be123c" stroke-width="2" stroke-dasharray="3,3" />
+                                    <text x="335" y="448" fill="#ffffff" font-size="13" font-weight="bold" text-anchor="middle">Private Target</text>
+                                    <text x="335" y="468" fill="#fecdd3" font-size="10" font-family="monospace" text-anchor="middle">web-basics-target:latest</text>
+                                    <text x="335" y="485" fill="#fda4af" font-size="9" text-anchor="middle">Isolated, no host port exposed</text>
+                                </g>
+                            </svg>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2 text-center">Click on any module/container above to examine its architecture, source code files, and operations.</p>
+                    </div>
+                </div>
+
+                <!-- Info panel for selected element -->
+                <div class="lg:col-span-1">
+                    <div class="glass rounded-2xl p-6 shadow-xl h-full flex flex-col justify-between border-slate-700/50" id="component-info-card">
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-3">
+                                <div id="info-icon-wrapper" class="p-2.5 rounded-lg bg-indigo-500/20 text-indigo-400">
+                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-brand-secondary font-mono tracking-widest uppercase">Selected Component</span>
+                                    <h3 class="text-lg font-bold text-slate-100" id="info-title">System Overview</h3>
+                                </div>
+                            </div>
+                            <hr class="border-slate-800">
+                            
+                            <div class="text-sm text-slate-300 space-y-3" id="info-description">
+                                <p>Click any box on the diagram to see how components communicate, their exact directories in the project repository, and how security policies are configured.</p>
+                                <p>This application implements an <strong>on-demand, stateless, and container-isolated coding lab</strong> where Docker containers are spun up as sandboxes dynamically using the local Docker Daemon Socket.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-800 space-y-4" id="info-details-box">
+                            <div>
+                                <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Key Project References</h4>
+                                <div class="space-y-1 text-xs font-mono" id="info-files">
+                                    <div class="flex items-center gap-1.5 text-slate-400">
+                                        <span>No component selected</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Overall Architecture Details -->
+            <div class="glass rounded-2xl p-6 shadow-xl space-y-6">
+                <h3 class="text-lg font-bold border-b border-slate-800 pb-3 flex items-center gap-2 text-indigo-400">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
+                    </svg>
+                    Module Structure & Architecture Breakdown
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 hover:border-indigo-500/40 transition duration-300">
+                        <h4 class="font-bold text-white mb-2 text-sm flex items-center gap-1.5">
+                            <span class="p-1 rounded bg-blue-500/20 text-blue-400">FE</span>
+                            React Frontend
+                        </h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Single-Page React App built with Vite and Tailwind v4. Features standard cookie/JWT auth storage, dynamic loading indicators for container startup, dashboard for launching labs, and embedded iframe wrappers targeting the dynamically exposed container port.
+                        </p>
+                    </div>
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 hover:border-purple-500/40 transition duration-300">
+                        <h4 class="font-bold text-white mb-2 text-sm flex items-center gap-1.5">
+                            <span class="p-1 rounded bg-purple-500/20 text-purple-400">BE</span>
+                            FastAPI Backend Server
+                        </h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Asynchronous Python backend running on Uvicorn. Decoupled into routers, models, schemas, and services. Uses async database sessions and validates permissions prior to issuing commands to Docker.
+                        </p>
+                    </div>
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 hover:border-cyan-500/40 transition duration-300">
+                        <h4 class="font-bold text-white mb-2 text-sm flex items-center gap-1.5">
+                            <span class="p-1 rounded bg-cyan-500/20 text-cyan-400">DO</span>
+                            Docker Orchestrator
+                        </h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            A dedicated service wrapper (`ContainerManager`) querying the local Docker socket. Enforces strict limits: custom CPU weights, memory ceilings, PID execution counts (256), and cleans up containers instantly.
+                        </p>
+                    </div>
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 hover:border-amber-500/40 transition duration-300">
+                        <h4 class="font-bold text-white mb-2 text-sm flex items-center gap-1.5">
+                            <span class="p-1 rounded bg-amber-500/20 text-amber-400">LA</span>
+                            Challenge Labs
+                        </h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Provides disposable cybersecurity/coding environments. Templates describe configurations (terminal tools, isolated per-session target networks, minimal CPU/memory footprints) with flag challenges checked in SQLite database on submission. Current DVWA-style catalog: SQL Injection, Command Injection, Reflected XSS, Stored XSS, and Unrestricted File Upload, plus the original Web Basics room.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: DATABASE SCHEMA -->
+        <section id="section-database" class="tab-section hidden space-y-8">
+            <div class="glass rounded-2xl p-6 shadow-xl">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                            <svg class="h-5 w-5 text-brand-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                            </svg>
+                            Relational Database Schema
+                        </h2>
+                        <p class="text-xs text-slate-400 font-mono mt-1">SQLite + SQLAlchemy ORM models defined in <a class="text-brand-secondary hover:underline" href="file:///d:/sumanta/Eduskills/major-project/backend/app/models">app/models/</a></p>
+                    </div>
+                    
+                    <div class="flex space-x-1 bg-slate-900/60 p-1 rounded-lg border border-slate-800">
+                        <button onclick="showSchemaGroup('core-schema')" id="btn-schema-core" class="schema-tab-btn px-3 py-1 rounded text-xs font-semibold bg-brand-secondary text-slate-950">Workspaces & Users</button>
+                        <button onclick="showSchemaGroup('labs-schema')" id="btn-schema-labs" class="schema-tab-btn px-3 py-1 rounded text-xs font-semibold text-slate-400 hover:text-white">Lab Challenges</button>
+                    </div>
+                </div>
+
+                <!-- SCHEMA VIEW: CORE USERS & WORKSPACES -->
+                <div id="core-schema" class="schema-group grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Table: users -->
+                    <div class="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-sm text-indigo-400 font-mono">users</span>
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">Primary Table</span>
+                        </div>
+                        <div class="p-3 text-xs font-mono divide-y divide-slate-800/50">
+                            <div class="py-1.5 flex justify-between"><span class="text-brand-secondary">id</span> <span class="text-slate-400">VARCHAR(36) [PK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>email</span> <span class="text-slate-500">VARCHAR(255) [Unique]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>username</span> <span class="text-slate-500">VARCHAR(255) [Unique]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>password_hash</span> <span class="text-slate-500">VARCHAR(255)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>github_id</span> <span class="text-slate-500">VARCHAR(50) [Unique]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>github_username</span> <span class="text-slate-500">VARCHAR(255)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>is_admin</span> <span class="text-slate-400">BOOLEAN</span></div>
+                            <div class="py-1.5 flex justify-between"><span>created_at</span> <span class="text-slate-500">DATETIME</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Table: user_limits -->
+                    <div class="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-sm text-indigo-400 font-mono">user_limits</span>
+                            <span class="text-[10px] bg-indigo-950 text-indigo-400 px-1.5 py-0.5 rounded font-mono">One-to-One</span>
+                        </div>
+                        <div class="p-3 text-xs font-mono divide-y divide-slate-800/50">
+                            <div class="py-1.5 flex justify-between"><span class="text-brand-secondary">user_id</span> <span class="text-slate-400">VARCHAR(36) [PK, FK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>cpu</span> <span class="text-slate-400">FLOAT</span></div>
+                            <div class="py-1.5 flex justify-between"><span>memory</span> <span class="text-slate-400">INTEGER (MB)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>disk</span> <span class="text-slate-400">INTEGER (GB)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>max_runtime</span> <span class="text-slate-400">INTEGER (sec)</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Table: workspaces -->
+                    <div class="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-sm text-indigo-400 font-mono">workspaces</span>
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">One-to-Many</span>
+                        </div>
+                        <div class="p-3 text-xs font-mono divide-y divide-slate-800/50">
+                            <div class="py-1.5 flex justify-between"><span class="text-brand-secondary">id</span> <span class="text-slate-400">VARCHAR(36) [PK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span class="text-slate-300">user_id</span> <span class="text-slate-500">VARCHAR(36) [FK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>container_id</span> <span class="text-slate-400">VARCHAR(64)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>container_name</span> <span class="text-slate-400">VARCHAR(100)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>status</span> <span class="text-slate-400">VARCHAR(20)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>access_url</span> <span class="text-slate-500">VARCHAR(500)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>access_port</span> <span class="text-slate-400">INTEGER</span></div>
+                            <div class="py-1.5 flex justify-between"><span>expires_at</span> <span class="text-slate-400">DATETIME</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SCHEMA VIEW: LABS CHALLENGES -->
+                <div id="labs-schema" class="schema-group hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Table: lab_templates -->
+                    <div class="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-sm text-cyan-400 font-mono">lab_templates</span>
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">Templates</span>
+                        </div>
+                        <div class="p-3 text-xs font-mono divide-y divide-slate-800/50">
+                            <div class="py-1.5 flex justify-between"><span class="text-brand-secondary">id</span> <span class="text-slate-400">VARCHAR(36) [PK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>name</span> <span class="text-slate-400">VARCHAR(255)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>access_mode</span> <span class="text-slate-400">VARCHAR(30)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>image</span> <span class="text-slate-400">VARCHAR(255)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>startup_command</span> <span class="text-slate-500">VARCHAR(500)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>default_port</span> <span class="text-slate-400">INTEGER</span></div>
+                            <div class="py-1.5 flex justify-between"><span>target_port</span> <span class="text-slate-400">INTEGER (default 8000)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>attacker_cpu</span> <span class="text-slate-400">FLOAT (default 0.25)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>attacker_memory</span> <span class="text-slate-400">INTEGER MB (default 256)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>target_cpu</span> <span class="text-slate-400">FLOAT (default 0.25)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>target_memory</span> <span class="text-slate-400">INTEGER MB (default 256)</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Table: rooms -->
+                    <div class="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-sm text-cyan-400 font-mono">rooms</span>
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">Challenge Rooms</span>
+                        </div>
+                        <div class="p-3 text-xs font-mono divide-y divide-slate-800/50">
+                            <div class="py-1.5 flex justify-between"><span class="text-brand-secondary">id</span> <span class="text-slate-400">VARCHAR(36) [PK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span class="text-slate-300">template_id</span> <span class="text-slate-500">VARCHAR(36) [FK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>slug</span> <span class="text-slate-400">VARCHAR(120) [Unique]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>title</span> <span class="text-slate-400">VARCHAR(255)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>difficulty</span> <span class="text-slate-400">VARCHAR(30)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>description</span> <span class="text-slate-500">TEXT</span></div>
+                            <div class="py-1.5 flex justify-between"><span>is_published</span> <span class="text-slate-400">BOOLEAN</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Table: challenges -->
+                    <div class="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-sm text-cyan-400 font-mono">challenges</span>
+                            <span class="text-[10px] bg-cyan-950 text-cyan-400 px-1.5 py-0.5 rounded font-mono">Flags</span>
+                        </div>
+                        <div class="p-3 text-xs font-mono divide-y divide-slate-800/50">
+                            <div class="py-1.5 flex justify-between"><span class="text-brand-secondary">id</span> <span class="text-slate-400">VARCHAR(36) [PK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span class="text-slate-300">room_id</span> <span class="text-slate-500">VARCHAR(36) [FK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>title</span> <span class="text-slate-400">VARCHAR(255)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>prompt</span> <span class="text-slate-500">TEXT</span></div>
+                            <div class="py-1.5 flex justify-between"><span>flag</span> <span class="text-slate-500">VARCHAR(255) [Secret]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>points</span> <span class="text-slate-400">INTEGER</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Table: lab_sessions -->
+                    <div class="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-sm text-cyan-400 font-mono">lab_sessions</span>
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">User Sessions</span>
+                        </div>
+                        <div class="p-3 text-xs font-mono divide-y divide-slate-800/50">
+                            <div class="py-1.5 flex justify-between"><span class="text-brand-secondary">id</span> <span class="text-slate-400">VARCHAR(36) [PK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>user_id</span> <span class="text-slate-500">VARCHAR(36) [FK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>room_id</span> <span class="text-slate-500">VARCHAR(36) [FK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>status</span> <span class="text-slate-400">VARCHAR(20)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>access_mode</span> <span class="text-slate-400">VARCHAR(30)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>attacker_container_id</span> <span class="text-slate-500">VARCHAR(64)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>target_container_ids</span> <span class="text-slate-500">TEXT</span></div>
+                            <div class="py-1.5 flex justify-between"><span>docker_network</span> <span class="text-slate-400">VARCHAR(120) [Isolation]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>access_url</span> <span class="text-slate-500">VARCHAR(500)</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Table: challenge_submissions -->
+                    <div class="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-sm text-cyan-400 font-mono">challenge_submissions</span>
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">User Submissions</span>
+                        </div>
+                        <div class="p-3 text-xs font-mono divide-y divide-slate-800/50">
+                            <div class="py-1.5 flex justify-between"><span class="text-brand-secondary">id</span> <span class="text-slate-400">VARCHAR(36) [PK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>user_id</span> <span class="text-slate-500">VARCHAR(36) [FK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>challenge_id</span> <span class="text-slate-500">VARCHAR(36) [FK]</span></div>
+                            <div class="py-1.5 flex justify-between"><span>submitted_flag</span> <span class="text-slate-400">VARCHAR(255)</span></div>
+                            <div class="py-1.5 flex justify-between"><span>is_correct</span> <span class="text-slate-400">BOOLEAN</span></div>
+                            <div class="py-1.5 flex justify-between"><span>points_awarded</span> <span class="text-slate-400">INTEGER</span></div>
+                            <div class="py-1.5 flex justify-between"><span>submitted_at</span> <span class="text-slate-500">DATETIME</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: API ENDPOINTS -->
+        <section id="section-endpoints" class="tab-section hidden space-y-6">
+            <div class="glass rounded-2xl p-6 shadow-xl">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                            <svg class="h-5 w-5 text-brand-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            REST API Router Reference
+                        </h2>
+                        <p class="text-xs text-slate-400 font-mono mt-1">Routes registered in <a class="text-brand-purple hover:underline" href="file:///d:/sumanta/Eduskills/major-project/backend/app/routers">app/routers/</a></p>
+                    </div>
+                    
+                    <!-- Search Input -->
+                    <div class="relative w-full md:w-72">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </span>
+                        <input type="text" id="api-search" oninput="filterEndpoints()" placeholder="Search paths or methods..." class="w-full pl-9 pr-4 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-primary">
+                    </div>
+                </div>
+
+                <!-- Endpoints Table -->
+                <div class="overflow-x-auto rounded-lg border border-slate-800/80">
+                    <table class="w-full text-left border-collapse text-sm" id="endpoints-table">
+                        <thead>
+                            <tr class="bg-slate-900/80 text-slate-300 font-semibold border-b border-slate-800">
+                                <th class="px-4 py-3">Router Group</th>
+                                <th class="px-4 py-3">Method</th>
+                                <th class="px-4 py-3">Endpoint Path</th>
+                                <th class="px-4 py-3">Description</th>
+                                <th class="px-4 py-3">Auth Requirement</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/50 bg-slate-950/30">
+                            <!-- Auth -->
+                            <tr class="api-row hover:bg-slate-900/20" data-group="auth">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Auth</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">POST</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/auth/register</td>
+                                <td class="px-4 py-3 text-slate-400">Register a new local user with email & password</td>
+                                <td class="px-4 py-3 text-slate-500">Public</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="auth">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Auth</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">POST</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/auth/login</td>
+                                <td class="px-4 py-3 text-slate-400">Authenticate locally; returns JWT access/refresh tokens</td>
+                                <td class="px-4 py-3 text-slate-500">Public</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="auth">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Auth</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-green-500/10 text-green-400 border border-green-500/20">GET</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/auth/github</td>
+                                <td class="px-4 py-3 text-slate-400">Redirects client browser to GitHub OAuth authorization screen</td>
+                                <td class="px-4 py-3 text-slate-500">Public</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="auth">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Auth</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-green-500/10 text-green-400 border border-green-500/20">GET</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/auth/github/callback</td>
+                                <td class="px-4 py-3 text-slate-400">Exchanges GitHub code for access token and signs user in</td>
+                                <td class="px-4 py-3 text-slate-500">Public</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="auth">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Auth</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-green-500/10 text-green-400 border border-green-500/20">GET</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/auth/me</td>
+                                <td class="px-4 py-3 text-slate-400">Fetch current user identity & role status</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">JWT Bearer</td>
+                            </tr>
+                            
+                            <!-- Workspaces -->
+                            <tr class="api-row hover:bg-slate-900/20" data-group="workspace">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Workspace</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-green-500/10 text-green-400 border border-green-500/20">GET</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/workspace/status</td>
+                                <td class="px-4 py-3 text-slate-400">Fetch status & remaining seconds of active workspace container</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">JWT Bearer</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="workspace">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Workspace</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">POST</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/workspace/start</td>
+                                <td class="px-4 py-3 text-slate-400">Spawns a new standard coding container using user limits</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">JWT Bearer</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="workspace">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Workspace</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">POST</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/workspace/stop</td>
+                                <td class="px-4 py-3 text-slate-400">Forces immediate stoppage and removal of user's active container</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">JWT Bearer</td>
+                            </tr>
+
+                            <!-- Labs -->
+                            <tr class="api-row hover:bg-slate-900/20" data-group="labs">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Labs</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-green-500/10 text-green-400 border border-green-500/20">GET</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/labs/rooms</td>
+                                <td class="px-4 py-3 text-slate-400">Lists all published lab challenge rooms</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">JWT Bearer</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="labs">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Labs</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-green-500/10 text-green-400 border border-green-500/20">GET</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/labs/rooms/{slug}</td>
+                                <td class="px-4 py-3 text-slate-400">Retrieve detail info for room slug (including challenges)</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">JWT Bearer</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="labs">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Labs</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">POST</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/labs/rooms/{slug}/start</td>
+                                <td class="px-4 py-3 text-slate-400">Starts a lab session (terminal, GUI, or web target combo)</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">JWT Bearer</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="labs">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Labs</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">POST</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/labs/rooms/{slug}/stop</td>
+                                <td class="px-4 py-3 text-slate-400">Stops lab session and destroys its containers</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">JWT Bearer</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="labs">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Labs</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">POST</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/labs/submissions</td>
+                                <td class="px-4 py-3 text-slate-400">Submit a flag for validation; marks challenge solved if correct</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">JWT Bearer</td>
+                            </tr>
+
+                            <!-- Admin -->
+                            <tr class="api-row hover:bg-slate-900/20" data-group="admin">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Admin</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-green-500/10 text-green-400 border border-green-500/20">GET</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/admin/users</td>
+                                <td class="px-4 py-3 text-slate-400">List all registered users inside system</td>
+                                <td class="px-4 py-3 text-rose-400 font-mono">JWT Admin Only</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="admin">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Admin</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-orange-500/10 text-orange-400 border border-orange-500/20">PUT</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/admin/users/{id}/limits</td>
+                                <td class="px-4 py-3 text-slate-400">Configure CPU, memory, disk, and expiration limits for a user</td>
+                                <td class="px-4 py-3 text-rose-400 font-mono">JWT Admin Only</td>
+                            </tr>
+                            <tr class="api-row hover:bg-slate-900/20" data-group="admin">
+                                <td class="px-4 py-3 text-slate-400 font-medium">Admin</td>
+                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-green-500/10 text-green-400 border border-green-500/20">GET</span></td>
+                                <td class="px-4 py-3 font-mono text-slate-200">/admin/containers</td>
+                                <td class="px-4 py-3 text-slate-400">List running workspace/lab docker containers on host</td>
+                                <td class="px-4 py-3 text-rose-400 font-mono">JWT Admin Only</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: CONTAINER LIFECYCLE -->
+        <section id="section-lifecycle" class="tab-section hidden space-y-8">
+            <div class="glass rounded-2xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                        <svg class="h-5 w-5 text-brand-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                        Workspace Container Lifecycle
+                    </h2>
+                    <p class="text-xs text-slate-400 font-mono mt-1">Lifecycle flow coordinates user requests with Docker SDK client inside <a class="text-brand-secondary hover:underline" href="file:///d:/sumanta/Eduskills/major-project/backend/app/services/container_manager.py">container_manager.py</a></p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
+                    <!-- Step 1 -->
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-mono font-bold text-brand-primary">STEP 01</span>
+                                <span class="h-2 w-2 rounded-full bg-brand-primary"></span>
+                            </div>
+                            <h4 class="font-bold text-sm text-white mb-1">Auth & Authorization</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Client requests `/workspace/start` providing a JWT. Backend validates JWT, verifies user status, and checks if an active container already exists for this user.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-mono font-bold text-brand-primary">STEP 02</span>
+                                <span class="h-2 w-2 rounded-full bg-brand-primary"></span>
+                            </div>
+                            <h4 class="font-bold text-sm text-white mb-1">Limit Retrieval</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                DB queries user limits: CPU shares, Memory MB limits, Disk limits, and maximum lease run duration. Standard defaults are loaded if no custom limits exist.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-mono font-bold text-brand-secondary">STEP 03</span>
+                                <span class="h-2 w-2 rounded-full bg-brand-secondary"></span>
+                            </div>
+                            <h4 class="font-bold text-sm text-white mb-1">Container Creation</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Python Docker SDK issues a run command on `/var/run/docker.sock` applying `mem_limit`, `nano_cpus`, and `pids_limit=128`. Standalone terminal labs join the shared `workspace-network`; web-target labs instead get a freshly created, per-session bridge network (`lab-{user}-{slug}-net`) so no other session's target container is reachable.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Step 4 -->
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-mono font-bold text-brand-secondary">STEP 04</span>
+                                <span class="h-2 w-2 rounded-full bg-brand-secondary"></span>
+                            </div>
+                            <h4 class="font-bold text-sm text-white mb-1">Port Resolution</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Host port is assigned dynamically by Docker daemon. Backend polls container state, extracts the host port, updates the `workspaces` table with `status="running"`.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Step 5 -->
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-mono font-bold text-emerald-500">STEP 05</span>
+                                <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            </div>
+                            <h4 class="font-bold text-sm text-white mb-1">Auto-Kill & Expiry</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Client requests status periodically. If `expires_at` is exceeded, or user triggers stop, backend invokes container stop and force-removes the Docker resources.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Constraints Callout -->
+                <div class="bg-indigo-950/20 border border-brand-primary/20 rounded-xl p-5 flex flex-col md:flex-row gap-4 items-start">
+                    <div class="p-3 bg-brand-primary/10 rounded-lg text-brand-primary">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-slate-200 text-sm">Security Isolation Constraints (Built-in)</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            To protect the host system, spawned containers are forced with <strong>privileged=False</strong>. No access to the Docker socket is mounted inside user workspace containers. Limits are hard-enforced at the container level by the Linux kernel CGroups via Docker engine, preventing denial of service attacks by resource exhaustion.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- File Tree and Project Structure Footer -->
+    <footer class="max-w-7xl mx-auto px-6 pb-16 pt-8 border-t border-slate-900 text-slate-400 text-xs">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="space-y-3">
+                <h4 class="font-bold text-slate-300 text-sm tracking-wider uppercase">Project Architecture Documentation</h4>
+                <p class="leading-relaxed">
+                    This file provides a structured architectural overview of the Virtual Workspace Platform. Use this documentation to trace backend logic, model schema definitions, and Docker container control pipelines.
+                </p>
+            </div>
+            
+            <div class="space-y-3 md:col-span-2">
+                <h4 class="font-bold text-slate-300 text-sm tracking-wider uppercase">App Codebase Directories</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-[11px] bg-slate-900/20 p-4 rounded-xl border border-slate-900">
+                    <div class="space-y-1">
+                        <div class="text-slate-300 font-semibold mb-1">Backend (/backend)</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/backend/app/core" class="hover:underline text-indigo-400">app/core/</a> - DB & JWT config</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/backend/app/models" class="hover:underline text-indigo-400">app/models/</a> - ORM Declarations</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/backend/app/routers" class="hover:underline text-indigo-400">app/routers/</a> - API endpoints</div>
+                        <div>└─ <a href="file:///d:/sumanta/Eduskills/major-project/backend/app/services" class="hover:underline text-indigo-400">app/services/</a> - Container Logic</div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-slate-300 font-semibold mb-1">Frontend (/frontend)</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/frontend/src/App.jsx" class="hover:underline text-indigo-400">src/App.jsx</a> - React Root Component</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/frontend/src/main.jsx" class="hover:underline text-indigo-400">src/main.jsx</a> - DOM EntryPoint</div>
+                        <div>└─ <a href="file:///d:/sumanta/Eduskills/major-project/frontend/package.json" class="hover:underline text-indigo-400">package.json</a> - Vite + TW4 configs</div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-slate-300 font-semibold mb-1">Vulnerable Targets (/docker/labs)</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/docker/labs/sql-injection" class="hover:underline text-indigo-400">sql-injection/</a> - Login bypass + UNION extraction</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/docker/labs/command-injection" class="hover:underline text-indigo-400">command-injection/</a> - Shell chaining via ping tool</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/docker/labs/xss-reflected" class="hover:underline text-indigo-400">xss-reflected/</a> - Unescaped reflection + admin bot check</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/docker/labs/xss-stored" class="hover:underline text-indigo-400">xss-stored/</a> - Persistent guestbook payloads</div>
+                        <div>└─ <a href="file:///d:/sumanta/Eduskills/major-project/docker/labs/file-upload" class="hover:underline text-indigo-400">file-upload/</a> - Unrestricted upload + execute RCE</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-8 text-center text-slate-600 font-mono text-[10px]">
+            Virtual Workspace Platform &copy; 2026. Made with Antigravity.
+        </div>
+    </footer>
+
+    <!-- Interactive Logic Script -->
+    <script>
+        const nodesData = {
+            frontend: {
+                title: "SPA Frontend App",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>`,
+                desc: `<p>The frontend application is built as a single-page application using <strong>React</strong>, compiled via <strong>Vite</strong>, and styled with <strong>Tailwind CSS v4</strong>.</p>
+                       <p>Its primary responsibilities are rendering the user dashboards, holding user JWT authentication, calling the backend APIs to request workspace starts/stops, and embedding the spawned workspace terminals/desktops inside sandboxed <code>&lt;iframe&gt;</code> elements targeting the dynamically-exposed host ports.</p>`,
+                files: [
+                    { name: "App.jsx", path: "file:///d:/sumanta/Eduskills/major-project/frontend/src/App.jsx" },
+                    { name: "main.jsx", path: "file:///d:/sumanta/Eduskills/major-project/frontend/src/main.jsx" },
+                    { name: "vite.config.js", path: "file:///d:/sumanta/Eduskills/major-project/frontend/vite.config.js" }
+                ],
+                theme: "indigo"
+            },
+            nginx: {
+                title: "Nginx Reverse Proxy",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>`,
+                desc: `<p>In the production environment, <strong>Nginx</strong> is the outer-most entrypoint (listening on port <code>80</code> / <code>5173</code> in compose configurations).</p>
+                       <p>It performs two critical roles: serving the static SPA frontend bundle files directly, and reverse-proxying API endpoints starting with <code>/api/*</code>, <code>/auth/*</code>, or <code>/admin/*</code> to the internal FastAPI backend running on port 8000.</p>`,
+                files: [
+                    { name: "nginx-proxy.conf", path: "file:///d:/sumanta/Eduskills/major-project/docker/nginx/nginx-proxy.conf" },
+                    { name: "docker-compose.yml", path: "file:///d:/sumanta/Eduskills/major-project/docker-compose.yml" }
+                ],
+                theme: "emerald"
+            },
+            backend: {
+                title: "FastAPI Backend API",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>`,
+                desc: `<p>The heart of the application operations. Built with <strong>FastAPI (Python)</strong> and running asynchronously via <strong>Uvicorn</strong>.</p>
+                       <p>The backend is divided cleanly into modules: routers for API definitions, SQL database models, schemas for Pydantic serialization, and services for custom operations. The backend handles User Authentication, GitHub OAuth, Admin configuration of limits, and orchestrates Docker containers by interacting with the Docker Socket service.</p>`,
+                files: [
+                    { name: "main.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/main.py" },
+                    { name: "config.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/core/config.py" },
+                    { name: "container_manager.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/services/container_manager.py" }
+                ],
+                theme: "purple"
+            },
+            database: {
+                title: "SQLite Database",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" /></svg>`,
+                desc: `<p>The project stores users, resource quotas, and active container mappings in a local <strong>SQLite</strong> database file (<code>./data/app.db</code>).</p>
+                       <p>Access is managed asynchronously using <strong>SQLAlchemy 2.0</strong> coupled with <strong>aiosqlite</strong>. Schema generation and lab template seeding occur automatically on application startup during the lifespan context initialization.</p>`,
+                files: [
+                    { name: "database.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/core/database.py" },
+                    { name: "models/user.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/models/user.py" },
+                    { name: "models/lab.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/models/lab.py" }
+                ],
+                theme: "slate"
+            },
+            dockersock: {
+                title: "Docker Daemon Socket",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>`,
+                desc: `<p>To spawn sibling containers on the same physical server, the backend container mounts the host's <code>/var/run/docker.sock</code>.</p>
+                       <p>This allows the backend FastAPI process (which is running inside a Docker container itself) to execute Docker command APIs. It requests the Docker Engine daemon on the host to run, list, inspect, and kill other container sandboxes.</p>`,
+                files: [
+                    { name: "docker-compose.yml", path: "file:///d:/sumanta/Eduskills/major-project/docker-compose.yml" },
+                    { name: "container_manager.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/services/container_manager.py" }
+                ],
+                theme: "cyan"
+            },
+            workspace: {
+                title: "User Workspace Container",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>`,
+                desc: `<p>A standard workspace sandbox is spun up on request using the image <code>workspace-dev:latest</code>.</p>
+                       <p>These containers run <code>ttyd</code> to serve a fully functional Linux command terminal over WebSockets (port 7681 internally). Host limits are strictly bound (e.g. CPU quota, 1024MB Memory limit, 256 PIDs limit). They are stateless; when a workspace is stopped, the container is destroyed and its ephemeral data is completely wiped.</p>`,
+                files: [
+                    { name: "Dockerfile", path: "file:///d:/sumanta/Eduskills/major-project/docker/workspace-image/Dockerfile" },
+                    { name: "entrypoint.sh", path: "file:///d:/sumanta/Eduskills/major-project/docker/workspace-image/entrypoint.sh" }
+                ],
+                theme: "indigo"
+            },
+            attacker: {
+                title: "Lab Attacker Sandbox",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>`,
+                desc: `<p>In challenge rooms, starting a session creates an attacker container (e.g. Kali Terminal or browser desktop noVNC container).</p>
+                       <p>For multi-container lab designs (SQL Injection, Command Injection, Reflected/Stored XSS, File Upload, Web Basics), the attacker container is connected to a network created fresh for that session alone, alongside a private target container, with the target's internal URL injected as an environment variable (<code>$TARGET_URL</code>) for exploration. Resource footprint is tuned independently and minimally (default 0.25 vCPU / 256MB) since the shell is idle most of the time.</p>`,
+                files: [
+                    { name: "models/lab.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/models/lab.py" },
+                    { name: "routers/labs.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/routers/labs.py" }
+                ],
+                theme: "amber"
+            },
+            target: {
+                title: "Private Target Container",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`,
+                desc: `<p>The target container (e.g., <code>sql-injection-target:latest</code>, <code>command-injection-target:latest</code>, <code>xss-reflected-target:latest</code>, <code>xss-stored-target:latest</code>, <code>file-upload-target:latest</code>, <code>web-basics-target:latest</code>) runs a vulnerable web service for the student to investigate.</p>
+                       <p>To prevent students from attacking other students' targets, target containers are kept completely private: they do <strong>not</strong> expose any host ports, join a network created fresh for that one session, and are accessible <em>only</em> from the student's paired attacker container. The network is torn down alongside both containers when the session stops or is cleaned up.</p>`,
+                files: [
+                    { name: "docker-compose.yml", path: "file:///d:/sumanta/Eduskills/major-project/docker-compose.yml" },
+                    { name: "container_manager.py", path: "file:///d:/sumanta/Eduskills/major-project/backend/app/services/container_manager.py" }
+                ],
+                theme: "slate"
+            }
+        };
+
+        function selectNode(nodeId) {
+            const data = nodesData[nodeId];
+            if (!data) return;
+
+            // Update title & icon
+            document.getElementById("info-title").innerText = data.title;
+            const iconWrapper = document.getElementById("info-icon-wrapper");
+            iconWrapper.innerHTML = data.icon;
+            
+            // Set dynamic theme color border
+            iconWrapper.className = "p-2.5 rounded-lg " + (
+                data.theme === 'indigo' ? 'bg-indigo-500/20 text-indigo-400' :
+                data.theme === 'emerald' ? 'bg-emerald-500/20 text-emerald-400' :
+                data.theme === 'purple' ? 'bg-purple-500/20 text-purple-400' :
+                data.theme === 'cyan' ? 'bg-cyan-500/20 text-cyan-400' :
+                data.theme === 'amber' ? 'bg-amber-500/20 text-amber-400' :
+                'bg-slate-700/20 text-slate-300'
+            );
+            
+            // Update Description
+            document.getElementById("info-description").innerHTML = data.desc;
+
+            // Update Files references
+            const filesBox = document.getElementById("info-files");
+            filesBox.innerHTML = "";
+            if (data.files && data.files.length > 0) {
+                data.files.forEach(f => {
+                    filesBox.innerHTML += `
+                        <div class="flex items-center justify-between p-1.5 rounded bg-slate-900 border border-slate-800 hover:border-slate-750 transition">
+                            <span class="text-slate-300">${f.name}</span>
+                            <a href="${f.path}" class="text-brand-secondary hover:text-white hover:underline text-[10px]">Open File</a>
+                        </div>
+                    `;
+                });
+            } else {
+                filesBox.innerHTML = '<div class="text-slate-500">No source files linked.</div>';
+            }
+
+            // Visual indicator of active selection in SVG
+            const svgElements = document.querySelectorAll('#architecture-svg g');
+            svgElements.forEach(el => {
+                el.style.opacity = '0.6';
+            });
+            // highlight the selected group
+            // We find the parent element with onclick attribute matching nodeId
+            const targetGroup = Array.from(svgElements).find(el => el.getAttribute('onclick')?.includes(nodeId));
+            if (targetGroup) {
+                targetGroup.style.opacity = '1';
+                targetGroup.style.transform = 'scale(1.02)';
+            }
+        }
+
+        // Tab Switching
+        function switchTab(tabName) {
+            const sections = document.querySelectorAll('.tab-section');
+            sections.forEach(s => s.classList.add('hidden'));
+            
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.classList.remove('bg-brand-primary', 'text-white', 'shadow-md');
+                btn.classList.add('text-slate-400', 'hover:text-white');
+            });
+
+            document.getElementById('section-' + tabName).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-' + tabName);
+            activeBtn.classList.add('bg-brand-primary', 'text-white', 'shadow-md');
+            activeBtn.classList.remove('text-slate-400', 'hover:text-white');
+        }
+
+        // Database Schema groups
+        function showSchemaGroup(groupId) {
+            document.querySelectorAll('.schema-group').forEach(g => g.classList.add('hidden'));
+            document.getElementById(groupId).classList.remove('hidden');
+
+            document.querySelectorAll('.schema-tab-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-secondary', 'text-slate-950');
+                btn.classList.add('text-slate-400', 'hover:text-white');
+            });
+
+            const activeBtn = groupId === 'core-schema' ? 'btn-schema-core' : 'btn-schema-labs' ? 'btn-schema-core' : 'btn-schema-labs';
+            // Simple mapping since we only have two tabs
+            if (groupId === 'core-schema') {
+                document.getElementById('btn-schema-core').classList.add('bg-brand-secondary', 'text-slate-950');
+                document.getElementById('btn-schema-core').classList.remove('text-slate-400', 'hover:text-white');
+                document.getElementById('btn-schema-labs').classList.remove('bg-brand-secondary', 'text-slate-950');
+                document.getElementById('btn-schema-labs').classList.add('text-slate-400', 'hover:text-white');
+            } else {
+                document.getElementById('btn-schema-labs').classList.add('bg-brand-secondary', 'text-slate-950');
+                document.getElementById('btn-schema-labs').classList.remove('text-slate-400', 'hover:text-white');
+                document.getElementById('btn-schema-core').classList.remove('bg-brand-secondary', 'text-slate-950');
+                document.getElementById('btn-schema-core').classList.add('text-slate-400', 'hover:text-white');
+            }
+        }
+
+        // Endpoint filtering
+        function filterEndpoints() {
+            const query = document.getElementById('api-search').value.toLowerCase();
+            const rows = document.querySelectorAll('.api-row');
+            
+            rows.forEach(row => {
+                const path = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+                const desc = row.querySelector('td:nth-child(4)').textContent.toLowerCase();
+                const method = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                
+                if (path.includes(query) || desc.includes(query) || method.includes(query)) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

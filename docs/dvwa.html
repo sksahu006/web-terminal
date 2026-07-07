@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Damn Vulnerable Web Application (DVWA) - Catalog & Reference</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b',
+                            950: '#0b1329',
+                        },
+                        danger: {
+                            50: '#fff1f2',
+                            100: '#ffe4e6',
+                            500: '#f43f5e',
+                            600: '#e11d48',
+                            700: '#be123c',
+                            900: '#881337',
+                        },
+                        brand: {
+                            primary: '#f43f5e', // Rose/Danger accent
+                            secondary: '#10b981', // Emerald/Secure accent
+                            amber: '#f59e0b',
+                            blue: '#3b82f6',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;750&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        .glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-danger:hover {
+            box-shadow: 0 0 25px -5px rgba(244, 63, 94, 0.4);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.15; transform: scale(1); }
+            50% { opacity: 0.45; transform: scale(1.05); }
+        }
+        .pulse-effect {
+            animation: pulse-slow 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans selection:bg-danger-500 selection:text-white antialiased min-h-screen">
+
+    <!-- Background Decoration -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-danger-700/10 blur-[120px] pulse-effect"></div>
+        <div class="absolute -bottom-[40%] -right-[20%] w-[80%] h-[80%] rounded-full bg-emerald-700/10 blur-[120px] pulse-effect" style="animation-delay: 1.5s;"></div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-50 glass border-b border-slate-800 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-danger-600 to-amber-500 flex items-center justify-center shadow-lg shadow-danger-500/20">
+                    <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">Damn Vulnerable Web Application (DVWA)</h1>
+                    <p class="text-xs text-brand-primary font-mono tracking-wider uppercase">Vulnerability Catalog & Architecture</p>
+                </div>
+            </div>
+            <nav class="flex items-center space-x-1 bg-slate-900/60 p-1.5 rounded-lg border border-slate-800">
+                <button onclick="switchTab('environment')" id="tab-environment" class="tab-btn px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 bg-brand-primary text-white shadow-md">
+                    Lab Environment
+                </button>
+                <button onclick="switchTab('catalog')" id="tab-catalog" class="tab-btn px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white">
+                    Vulnerability Catalog
+                </button>
+                <button onclick="switchTab('levels')" id="tab-levels" class="tab-btn px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white">
+                    Security Levels
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-6 py-8 relative z-10">
+
+        <!-- TAB: LAB ENVIRONMENT -->
+        <section id="section-environment" class="tab-section space-y-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- SVG Architecture Blueprint -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="glass rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                        <div class="absolute top-4 right-4 flex items-center space-x-2">
+                            <span class="h-2 w-2 rounded-full bg-danger-500 animate-pulse"></span>
+                            <span class="text-xs font-mono text-slate-400">Target Architecture</span>
+                        </div>
+                        <h2 class="text-lg font-bold mb-4 text-slate-100 flex items-center gap-2">
+                            <svg class="h-5 w-5 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            Container Deployment Model
+                        </h2>
+                        
+                        <div class="w-full bg-slate-900/40 rounded-xl border border-slate-800 p-2 overflow-x-auto">
+                            <svg viewBox="0 0 800 450" class="w-full min-w-[700px] h-auto drop-shadow-md select-none" id="dvwa-svg">
+                                <defs>
+                                    <linearGradient id="dangerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#f43f5e" />
+                                        <stop offset="100%" stop-color="#be123c" />
+                                    </linearGradient>
+                                    <linearGradient id="dbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#0284c7" />
+                                        <stop offset="100%" stop-color="#0369a1" />
+                                    </linearGradient>
+                                    <linearGradient id="webGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#4f46e5" />
+                                        <stop offset="100%" stop-color="#3730a3" />
+                                    </linearGradient>
+                                </defs>
+
+                                <!-- Grid pattern background -->
+                                <rect width="800" height="450" fill="none" />
+                                
+                                <!-- Connection Lines -->
+                                <path d="M180,210 L300,210" stroke="#475569" stroke-width="2.5" stroke-dasharray="6,4" fill="none" />
+                                <path d="M480,210 L600,210" stroke="#6366f1" stroke-width="2.5" fill="none" />
+                                
+                                <!-- User Web Browser / Attacker -->
+                                <g class="cursor-pointer group" onclick="selectEnvNode('browser')">
+                                    <rect x="20" y="160" width="160" height="100" rx="10" fill="#1e293b" stroke="#334155" stroke-width="2" />
+                                    <text x="100" y="195" fill="#ffffff" font-size="14" font-weight="bold" text-anchor="middle">Attacker Browser</text>
+                                    <text x="100" y="215" fill="#94a3b8" font-size="10" text-anchor="middle">HTTP Requests</text>
+                                    <text x="100" y="235" fill="#e11d48" font-size="9" font-family="monospace" text-anchor="middle">Port 127.0.0.1:4280</text>
+                                </g>
+
+                                <!-- DVWA Web Container -->
+                                <g class="cursor-pointer group" onclick="selectEnvNode('web')">
+                                    <rect x="300" y="140" width="180" height="140" rx="12" fill="url(#dangerGrad)" stroke="#f43f5e" stroke-width="2" />
+                                    <text x="390" y="175" fill="#ffffff" font-size="15" font-weight="bold" text-anchor="middle">DVWA Container</text>
+                                    <text x="390" y="198" fill="#ffe4e6" font-size="11" font-family="monospace" text-anchor="middle">php:8-apache</text>
+                                    <text x="390" y="220" fill="#fecdd3" font-size="10" text-anchor="middle">App Code: vulnerabilities/</text>
+                                    <text x="390" y="240" fill="#fda4af" font-size="9" text-anchor="middle">Session: Cookie-based auth</text>
+                                    <text x="390" y="258" fill="#fda4af" font-size="9" text-anchor="middle">Security Levels toggled</text>
+                                </g>
+
+                                <!-- MariaDB Database Container -->
+                                <g class="cursor-pointer group" onclick="selectEnvNode('db')">
+                                    <rect x="600" y="160" width="170" height="100" rx="10" fill="url(#dbGrad)" stroke="#0284c7" stroke-width="2" />
+                                    <text x="685" y="195" fill="#ffffff" font-size="14" font-weight="bold" text-anchor="middle">MariaDB Database</text>
+                                    <text x="685" y="215" fill="#e0f2fe" font-size="10" font-family="monospace" text-anchor="middle">mariadb:10</text>
+                                    <text x="685" y="235" fill="#7dd3fc" font-size="9" text-anchor="middle">Credentials: dvwa/p@ssw0rd</text>
+                                </g>
+
+                                <!-- Network isolation frame -->
+                                <rect x="280" y="80" width="510" height="300" rx="12" fill="none" stroke="#334155" stroke-width="1.5" stroke-dasharray="8,4" />
+                                <text x="295" y="105" fill="#475569" font-size="11" font-family="monospace" font-weight="bold">DOCKER BRIDGED NETWORK: dvwa</text>
+                            </svg>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2 text-center">Click on any module above to view details, linked ports, and environment variables.</p>
+                    </div>
+                </div>
+
+                <!-- Info sidebar -->
+                <div class="lg:col-span-1">
+                    <div class="glass rounded-2xl p-6 shadow-xl h-full flex flex-col justify-between border-slate-700/50" id="env-info-card">
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-3">
+                                <div id="env-icon-wrapper" class="p-2.5 rounded-lg bg-danger-500/20 text-danger-400">
+                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-brand-primary font-mono tracking-widest uppercase">Target Module</span>
+                                    <h3 class="text-lg font-bold text-slate-100" id="env-title">DVWA Environment</h3>
+                                </div>
+                            </div>
+                            <hr class="border-slate-800">
+                            
+                            <div class="text-sm text-slate-300 space-y-3" id="env-description">
+                                <p>DVWA (Damn Vulnerable Web Application) is a PHP/MySQL web application designed to be vulnerable to common web-based vulnerabilities.</p>
+                                <p>Click on any box in the connectivity map to inspect ports, internal networking, configurations, and files.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-800 space-y-4" id="env-details-box">
+                            <div>
+                                <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Key Repository Configurations</h4>
+                                <div class="space-y-1 text-xs font-mono" id="env-files">
+                                    <div class="flex items-center gap-1.5 text-slate-400">
+                                        <span>No component selected</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lab Integration Context -->
+            <div class="glass rounded-2xl p-6 shadow-xl space-y-4 border-slate-800">
+                <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                    <svg class="h-5 w-5 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                    How DVWA fits into the Virtual Workspace Platform
+                </h3>
+                <p class="text-sm text-slate-300 leading-relaxed">
+                    Inside this major project workspace, DVWA is used as a challenge room environment. When a learner spawns the <code>web-basics</code> room:
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-sans text-xs">
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800">
+                        <h4 class="font-bold text-white mb-1.5">Dual-Container Topology</h4>
+                        <p class="text-slate-400 leading-relaxed">
+                            The platform launches an <strong>attacker container</strong> (carrying tools like curl, netcat, etc.) and a <strong>private DVWA target container</strong> connected over the same Docker bridge network.
+                        </p>
+                    </div>
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800">
+                        <h4 class="font-bold text-white mb-1.5">Private Target Protection</h4>
+                        <p class="text-slate-400 leading-relaxed">
+                            The DVWA target container does <strong>not</strong> expose any host ports. This prevents lateral attacks and limits exploitation access exclusively to the student's assigned attacker container.
+                        </p>
+                    </div>
+                    <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800">
+                        <h4 class="font-bold text-white mb-1.5">Target Injection</h4>
+                        <p class="text-slate-400 leading-relaxed">
+                            The attacker container is provisioned with a <code>$TARGET_URL</code> environment variable, enabling learners to immediately query and attack the DVWA instance directly from their terminal session.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: VULNERABILITY CATALOG -->
+        <section id="section-catalog" class="tab-section hidden space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Sidebar selection -->
+                <div class="md:col-span-1 glass rounded-2xl p-4 shadow-xl border-slate-800 space-y-2 h-[600px] overflow-y-auto">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest px-2 mb-3">Vulnerability Category</h3>
+                    
+                    <button onclick="selectVulnerability('exec')" class="vuln-btn w-full text-left px-3 py-2 rounded-lg text-xs font-semibold font-mono bg-danger-900/40 text-danger-400 border border-danger-500/20 transition">Command Injection</button>
+                    <button onclick="selectVulnerability('sqli')" class="vuln-btn w-full text-left px-3 py-2 rounded-lg text-xs font-semibold font-mono text-slate-400 hover:text-white transition">SQL Injection (SQLi)</button>
+                    <button onclick="selectVulnerability('csrf')" class="vuln-btn w-full text-left px-3 py-2 rounded-lg text-xs font-semibold font-mono text-slate-400 hover:text-white transition">CSRF Protection</button>
+                    <button onclick="selectVulnerability('fi')" class="vuln-btn w-full text-left px-3 py-2 rounded-lg text-xs font-semibold font-mono text-slate-400 hover:text-white transition">File Inclusion</button>
+                    <button onclick="selectVulnerability('upload')" class="vuln-btn w-full text-left px-3 py-2 rounded-lg text-xs font-semibold font-mono text-slate-400 hover:text-white transition">Unrestricted Upload</button>
+                    <button onclick="selectVulnerability('xss_r')" class="vuln-btn w-full text-left px-3 py-2 rounded-lg text-xs font-semibold font-mono text-slate-400 hover:text-white transition">Reflected XSS</button>
+                    <button onclick="selectVulnerability('xss_s')" class="vuln-btn w-full text-left px-3 py-2 rounded-lg text-xs font-semibold font-mono text-slate-400 hover:text-white transition">Stored XSS</button>
+                    <button onclick="selectVulnerability('brute')" class="vuln-btn w-full text-left px-3 py-2 rounded-lg text-xs font-semibold font-mono text-slate-400 hover:text-white transition">Brute Force</button>
+                    <button onclick="selectVulnerability('weak_id')" class="vuln-btn w-full text-left px-3 py-2 rounded-lg text-xs font-semibold font-mono text-slate-400 hover:text-white transition">Weak Session IDs</button>
+                </div>
+
+                <!-- Main display content -->
+                <div class="md:col-span-3 space-y-6">
+                    <div class="glass rounded-2xl p-6 shadow-xl space-y-6 border-slate-800">
+                        <!-- Vuln Title -->
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                            <div>
+                                <h2 class="text-xl font-extrabold text-slate-100" id="vuln-display-title">Command Injection</h2>
+                                <p class="text-xs text-brand-primary font-mono mt-1" id="vuln-display-subdir">Subdirectory: DVWA/vulnerabilities/exec/</p>
+                            </div>
+                            <span class="px-2.5 py-1 rounded text-xs font-bold font-mono bg-red-500/10 text-red-400 border border-red-500/20" id="vuln-severity">HIGH SEVERITY</span>
+                        </div>
+
+                        <!-- Vuln Description -->
+                        <div class="text-sm text-slate-300 space-y-3" id="vuln-display-desc">
+                            <p>Command injection occurs when an application passes unsafe user-supplied data to a system shell. In this scenario, the operating system commands are executed with the privileges of the vulnerable application.</p>
+                        </div>
+
+                        <!-- Source code tabs comparison -->
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest">PHP Source Code comparison</h4>
+                                <!-- Security level code toggles -->
+                                <div class="flex space-x-1 bg-slate-900/60 p-1 rounded-lg border border-slate-800">
+                                    <button onclick="switchCodeLevel('low')" id="code-btn-low" class="code-lvl-btn px-2.5 py-1 rounded text-[10px] font-bold bg-danger-600 text-white shadow-sm">Low</button>
+                                    <button onclick="switchCodeLevel('medium')" id="code-btn-medium" class="code-lvl-btn px-2.5 py-1 rounded text-[10px] font-bold text-slate-400 hover:text-white">Medium</button>
+                                    <button onclick="switchCodeLevel('high')" id="code-btn-high" class="code-lvl-btn px-2.5 py-1 rounded text-[10px] font-bold text-slate-400 hover:text-white">High</button>
+                                    <button onclick="switchCodeLevel('impossible')" id="code-btn-impossible" class="code-lvl-btn px-2.5 py-1 rounded text-[10px] font-bold text-slate-400 hover:text-white">Impossible</button>
+                                </div>
+                            </div>
+
+                            <!-- Source Code Box -->
+                            <div class="relative bg-slate-900/80 rounded-xl border border-slate-800 p-4 font-mono text-xs overflow-x-auto max-h-[350px]">
+                                <pre class="text-slate-300" id="vuln-code-block"><code>&lt;?php
+// Low level source code snippet
+if( isset( $_POST[ 'Submit' ]  ) ) {
+    $target = $_REQUEST[ 'ip' ];
+    if( stristr( php_uname( 's' ), 'Windows NT' ) ) {
+        $cmd = shell_exec( 'ping  ' . $target );
+    } else {
+        $cmd = shell_exec( 'ping  -c 4 ' . $target );
+    }
+    $html .= "&lt;pre&gt;{$cmd}&lt;/pre&gt;";
+}
+?&gt;</code></pre>
+                            </div>
+                        </div>
+
+                        <!-- Explanations & Defenses -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                            <div class="bg-red-950/10 border border-red-500/20 p-4 rounded-xl space-y-2">
+                                <h4 class="font-bold text-red-400 flex items-center gap-1.5">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    Vulnerability Flaw
+                                </h4>
+                                <p class="text-slate-300 leading-relaxed" id="vuln-flaw-desc">
+                                    No sanitation filters are applied on the target input. The variable is concatenated directly into the ping command and passed to <code>shell_exec</code>. Attackers append logical operators (like <code>;</code>, <code>&</code>, or <code>||</code>) followed by arbitrary shell commands to run payloads.
+                                </p>
+                            </div>
+                            <div class="bg-emerald-950/10 border border-emerald-500/20 p-4 rounded-xl space-y-2">
+                                <h4 class="font-bold text-emerald-400 flex items-center gap-1.5">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                    Prevention & Remediation
+                                </h4>
+                                <p class="text-slate-300 leading-relaxed" id="vuln-prevention-desc">
+                                    Instead of shell command concatenation, validate that inputs represent an IP address format strictly (whitelisting numeric characters and periods). Alternatively, escape parameters using <code>escapeshellarg()</code> or avoid shell functions entirely in favor of native programming language APIs.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: SECURITY LEVELS -->
+        <section id="section-levels" class="tab-section hidden space-y-8">
+            <div class="glass rounded-2xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                        <svg class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        DVWA Security Levels Mechanics
+                    </h2>
+                    <p class="text-xs text-slate-400 font-mono mt-1">Understanding security modes toggled via user session cookies</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm">
+                    <!-- Low -->
+                    <div class="bg-red-950/15 border border-red-500/25 p-5 rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-mono font-bold text-red-500">LEVEL: LOW</span>
+                            <span class="h-2 w-2 rounded-full bg-red-500"></span>
+                        </div>
+                        <h4 class="font-bold text-white">Totally Vulnerable</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            No security measures are implemented. Parameter inputs are passed straight into SQL queries or shell executors. Suitable for confirming baseline exploitation and executing standard proof-of-concept payloads.
+                        </p>
+                    </div>
+
+                    <!-- Medium -->
+                    <div class="bg-amber-950/15 border border-amber-500/25 p-5 rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-mono font-bold text-amber-500">LEVEL: MEDIUM</span>
+                            <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+                        </div>
+                        <h4 class="font-bold text-white">Naive Filters (Blacklists)</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Implements minor sanitization steps, such as regex filters replacing common character patterns (e.g. replacing <code>&lt;script&gt;</code> with empty spaces). Easily bypassed using capitalization tricks or nested injection schemes.
+                        </p>
+                    </div>
+
+                    <!-- High -->
+                    <div class="bg-orange-950/15 border border-orange-500/25 p-5 rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-mono font-bold text-orange-500">LEVEL: HIGH</span>
+                            <span class="h-2 w-2 rounded-full bg-orange-500"></span>
+                        </div>
+                        <h4 class="font-bold text-white">Strict Filters / Blacklists</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Applies comprehensive blacklist logic. Filters out multiple command concatenations or restricts characters stringently. Still bypassable using obscure protocols, alternative syntax formats, or out-of-band methods.
+                        </p>
+                    </div>
+
+                    <!-- Impossible -->
+                    <div class="bg-emerald-950/15 border border-emerald-500/25 p-5 rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-mono font-bold text-emerald-500">LEVEL: SECURE</span>
+                            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        </div>
+                        <h4 class="font-bold text-white">Secure Implementations</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Utilizes robust programming standards: SQL prepared statements (eliminating code injection vectors), strict input whitelisting, output context-aware encoding, and mandatory anti-CSRF token verification checks.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- File Tree and Project Structure Footer -->
+    <footer class="max-w-7xl mx-auto px-6 pb-16 pt-8 border-t border-slate-900 text-slate-400 text-xs">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="space-y-3">
+                <h4 class="font-bold text-slate-300 text-sm tracking-wider uppercase">DVWA Structure & Catalog Reference</h4>
+                <p class="leading-relaxed">
+                    This reference sheet lists vulnerability subdirectories, source code layouts, and container setup configurations for use during lab curation or security assessments.
+                </p>
+            </div>
+            
+            <div class="space-y-3 md:col-span-2">
+                <h4 class="font-bold text-slate-300 text-sm tracking-wider uppercase">DVWA Codebase Folders</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-[11px] bg-slate-900/20 p-4 rounded-xl border border-slate-900">
+                    <div class="space-y-1">
+                        <div class="text-slate-300 font-semibold mb-1">Vulnerability Logic (/DVWA)</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/DVWA/vulnerabilities" class="hover:underline text-rose-400">vulnerabilities/</a> - Vulnerability categories</div>
+                        <div>│  ├─ <a href="file:///d:/sumanta/Eduskills/major-project/DVWA/vulnerabilities/exec" class="hover:underline text-rose-400">exec/</a> - Command Injection folder</div>
+                        <div>│  ├─ <a href="file:///d:/sumanta/Eduskills/major-project/DVWA/vulnerabilities/sqli" class="hover:underline text-rose-400">sqli/</a> - SQL Injection folder</div>
+                        <div>│  └─ <a href="file:///d:/sumanta/Eduskills/major-project/DVWA/vulnerabilities/csrf" class="hover:underline text-rose-400">csrf/</a> - CSRF bypass folder</div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-slate-300 font-semibold mb-1">Configurations & Setup</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/DVWA/config" class="hover:underline text-rose-400">config/</a> - Connection parameters</div>
+                        <div>├─ <a href="file:///d:/sumanta/Eduskills/major-project/DVWA/setup.php" class="hover:underline text-rose-400">setup.php</a> - Database setup script</div>
+                        <div>└─ <a href="file:///d:/sumanta/Eduskills/major-project/DVWA/compose.yml" class="hover:underline text-rose-400">compose.yml</a> - DVWA local compose setup</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-8 text-center text-slate-600 font-mono text-[10px]">
+            Damn Vulnerable Web Application Catalog &copy; 2026. Made with Antigravity.
+        </div>
+    </footer>
+
+    <!-- Interactive Logic Script -->
+    <script>
+        // Environment node selection data
+        const envNodesData = {
+            browser: {
+                title: "Client Browser / Attacker",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>`,
+                desc: `<p>The attacker represents the user browser executing HTTP requests against the exposed host port (<code>4280</code> mapped in compose).</p>
+                       <p>Inside the virtual lab environment, the browser connects to the <strong>Attacker Container</strong>, and queries target endpoints from within the isolated bridge network.</p>`,
+                files: [
+                    { name: "compose.yml", path: "file:///d:/sumanta/Eduskills/major-project/DVWA/compose.yml" }
+                ],
+                theme: "slate"
+            },
+            web: {
+                title: "DVWA Web Service Container",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>`,
+                desc: `<p>The central application container built from the local <code>Dockerfile</code> based on the <code>php:8-apache</code> base image.</p>
+                       <p>This container runs Apache serving PHP 8 code. The vulnerability scripts are organized cleanly in folders inside <code>/var/www/html/vulnerabilities/</code>. Security parameters are tracked using standard PHP session cookies.</p>`,
+                files: [
+                    { name: "Dockerfile", path: "file:///d:/sumanta/Eduskills/major-project/DVWA/Dockerfile" },
+                    { name: "config.inc.php.dist", path: "file:///d:/sumanta/Eduskills/major-project/DVWA/config/config.inc.php.dist" },
+                    { name: "setup.php", path: "file:///d:/sumanta/Eduskills/major-project/DVWA/setup.php" }
+                ],
+                theme: "danger"
+            },
+            db: {
+                title: "MariaDB Database Container",
+                icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" /></svg>`,
+                desc: `<p>MariaDB database container serving database tables dynamically generated by the <code>setup.php</code> script.</p>
+                       <p>Tables hold dummy users, guestbook submissions, and flags. Web service authentication details are stored in <code>config/config.inc.php</code>.</p>`,
+                files: [
+                    { name: "compose.yml", path: "file:///d:/sumanta/Eduskills/major-project/DVWA/compose.yml" }
+                ],
+                theme: "sky"
+            }
+        };
+
+        function selectEnvNode(nodeId) {
+            const data = envNodesData[nodeId];
+            if (!data) return;
+
+            document.getElementById("env-title").innerText = data.title;
+            const iconWrapper = document.getElementById("env-icon-wrapper");
+            iconWrapper.innerHTML = data.icon;
+            
+            iconWrapper.className = "p-2.5 rounded-lg " + (
+                data.theme === 'danger' ? 'bg-danger-500/20 text-danger-400' :
+                data.theme === 'sky' ? 'bg-sky-500/20 text-sky-400' :
+                'bg-slate-700/20 text-slate-300'
+            );
+            
+            document.getElementById("env-description").innerHTML = data.desc;
+
+            const filesBox = document.getElementById("env-files");
+            filesBox.innerHTML = "";
+            if (data.files && data.files.length > 0) {
+                data.files.forEach(f => {
+                    filesBox.innerHTML += `
+                        <div class="flex items-center justify-between p-1.5 rounded bg-slate-900 border border-slate-800 hover:border-slate-750 transition">
+                            <span class="text-slate-300">${f.name}</span>
+                            <a href="${f.path}" class="text-brand-primary hover:text-white hover:underline text-[10px]">Open File</a>
+                        </div>
+                    `;
+                });
+            } else {
+                filesBox.innerHTML = '<div class="text-slate-500">No configurations linked.</div>';
+            }
+
+            const svgElements = document.querySelectorAll('#dvwa-svg g');
+            svgElements.forEach(el => {
+                el.style.opacity = '0.6';
+            });
+            const targetGroup = Array.from(svgElements).find(el => el.getAttribute('onclick')?.includes(nodeId));
+            if (targetGroup) {
+                targetGroup.style.opacity = '1';
+            }
+        }
+
+        // Vulnerability Database
+        const vulnerabilitiesData = {
+            exec: {
+                title: "Command Injection",
+                subdir: "DVWA/vulnerabilities/exec/",
+                severity: "HIGH SEVERITY",
+                severityClass: "bg-red-500/10 text-red-400 border-red-500/20",
+                desc: `<p>Command injection occurs when an application passes unsafe user-supplied data to a system shell. In this scenario, the operating system commands are executed with the privileges of the vulnerable application.</p>
+                       <p>Attackers append operators like <code>;</code>, <code>&</code>, or <code>||</code> to inject custom commands.</p>`,
+                flaw: "No sanitation filters are applied on the target input. The variable is concatenated directly into the ping command and passed to <code>shell_exec</code>.",
+                remediation: "Instead of shell command concatenation, validate that inputs represent an IP address format strictly (whitelisting periods and digits). Avoid shell functions entirely in favor of native APIs.",
+                code: {
+                    low: `<?php\nif( isset( $_POST[ 'Submit' ]  ) ) {\n    $target = $_REQUEST[ 'ip' ];\n    if( stristr( php_uname( 's' ), 'Windows NT' ) ) {\n        $cmd = shell_exec( 'ping  ' . $target );\n    } else {\n        $cmd = shell_exec( 'ping  -c 4 ' . $target );\n    }\n    $html .= "<pre>\${cmd}</pre>";\n}\n?>`,
+                    medium: `<?php\nif( isset( $_POST[ 'Submit' ]  ) ) {\n    $target = $_REQUEST[ 'ip' ];\n    // Naive Blacklisting\n    $substitutions = array(\n        '&&' => '',\n        ';'  => '',\n    );\n    $target = str_replace( array_keys( $substitutions ), $substitutions, $target );\n    // Exec command...\n}?>`,
+                    high: `<?php\nif( isset( $_POST[ 'Submit' ]  ) ) {\n    $target = trim(\$_REQUEST[ 'ip' ]);\n    // Strict Blacklisting\n    $substitutions = array(\n        '&'  => '',\n        ';'  => '',\n        '| ' => '',\n        '-'  => '',\n    );\n    $target = str_replace( array_keys( $substitutions ), $substitutions, $target );\n    // Exec command...\n}?>`,
+                    impossible: `<?php\nif( isset( $_POST[ 'Submit' ]  ) ) {\n    // Check Anti-CSRF Token\n    checkToken( \$_REQUEST[ 'user_token' ], \$_SESSION[ 'session_token' ], 'index.php' );\n    $target = \$_REQUEST[ 'ip' ];\n    $target = stripslashes( $target );\n    // Whitelisting split validation\n    $octet = explode( ".", $target );\n    if( ( is_numeric( $octet[0] ) ) && ( is_numeric( $octet[1] ) ) && ( is_numeric( $octet[2] ) ) && ( is_numeric( $octet[3] ) ) && ( sizeof( $octet ) == 4 ) ) {\n        $target = $octet[0] . '.' . $octet[1] . '.' . $octet[2] . '.' . $octet[3];\n        // Exec command...\n    } else {\n        $html .= '<pre>ERROR: You have entered an invalid IP.</pre>';\n    }\n}?>`
+                }
+            },
+            sqli: {
+                title: "SQL Injection (SQLi)",
+                subdir: "DVWA/vulnerabilities/sqli/",
+                severity: "HIGH SEVERITY",
+                severityClass: "bg-red-500/10 text-red-400 border-red-500/20",
+                desc: `<p>SQL Injection occurs when user input is concatenated directly into a database query string instead of using parameterized queries.</p>
+                       <p>This lets attackers manipulate the query structure, bypass authentication, extract sensitive databases, or modify DB records.</p>`,
+                flaw: "Inputs are appended raw to the SQL statement: <code>SELECT first_name, last_name FROM users WHERE user_id = '$id'</code>. Single quotes break syntax allowing UNION injections.",
+                remediation: "Implement Prepared Statements using PDO or parameterized query interfaces. Never build database queries via direct string concatenation.",
+                code: {
+                    low: `<?php\nif( isset( $_REQUEST[ 'Submit' ] ) ) {\n    $id = $_REQUEST[ 'id' ];\n    $query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";\n    $result = mysqli_query($GLOBALS["___mysqli_ston"],  $query );\n    // ... \n}?>`,
+                    medium: `<?php\nif( isset( $_POST[ 'Submit' ] ) ) {\n    $id = $_POST[ 'id' ];\n    // Naive escaping\n    $id = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $id);\n    $query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";\n    // Vulnerable if input is not quoted inside query!\n}?>`,
+                    high: `<?php\n// High level uses custom parameters selection page\n// or sessions storage to isolate database input variables...\n?>`,
+                    impossible: `<?php\nif( isset( $_GET[ 'Submit' ] ) ) {\n    checkToken( \$_GET[ 'user_token' ], \$_SESSION[ 'session_token' ], 'index.php' );\n    $id = \$_GET[ 'id' ];\n    // Secure Prepared Statement\n    $data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );\n    $data->bindParam( ':id', $id, PDO::PARAM_INT );\n    $data->execute();\n}?>`
+                }
+            },
+            csrf: {
+                title: "Cross Site Request Forgery (CSRF)",
+                subdir: "DVWA/vulnerabilities/csrf/",
+                severity: "MEDIUM SEVERITY",
+                severityClass: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                desc: `<p>CSRF forces an end user to execute unwanted actions on a web application in which they are currently authenticated.</p>
+                       <p>Attackers host a malicious script or link that silently triggers a state-changing API call (like changing passwords) on the target site.</p>`,
+                flaw: "The application processes password changes purely based on standard session cookies, without verifying if the request originated from the authentic application interface.",
+                remediation: "Inject a unique, cryptographically random Anti-CSRF token on every request, verifying it against the user session on form submissions.",
+                code: {
+                    low: `<?php\nif( isset( $_GET[ 'Change' ] ) ) {\n    $pass_new = $_GET[ 'password_new' ];\n    $pass_conf = $_GET[ 'password_conf' ];\n    // Changes password directly without origins validation...\n}?>`,
+                    medium: `<?php\nif( isset( $_GET[ 'Change' ] ) ) {\n    // Naive HTTP Referer Check\n    if( stripos( $_SERVER[ 'HTTP_REFERER' ], $_SERVER[ 'SERVER_NAME' ] ) !== false ) {\n        // Changes password...\n    }\n}?>`,
+                    high: `<?php\n// High level checks anti-CSRF token, but is vulnerable if XSS exists\n// allowing attackers to read token value via DOM scripting.\n?>`,
+                    impossible: `<?php\nif( isset( $_GET[ 'Change' ] ) ) {\n    // Require current password input + Anti-CSRF token verification\n    checkToken( \$_GET[ 'user_token' ], \$_SESSION[ 'session_token' ], 'index.php' );\n    // Updates password...\n}?>`
+                }
+            },
+            fi: {
+                title: "File Inclusion",
+                subdir: "DVWA/vulnerabilities/fi/",
+                severity: "HIGH SEVERITY",
+                severityClass: "bg-red-500/10 text-red-400 border-red-500/20",
+                desc: `<p>File Inclusion occurs when an application includes a file path parameter directly into server include commands (like <code>include()</code> or <code>require()</code> in PHP).</p>
+                       <p>This allows Local File Inclusion (reading logs, credentials on system) or Remote File Inclusion (executing remote web payloads).</p>`,
+                flaw: "The <code>page</code> variable is included without checking paths: <code>include( $file )</code>. Path traversals (<code>../../etc/passwd</code>) are fully processed.",
+                remediation: "Avoid dynamic file inclusion paths. Maintain a strict whitelist array mapping keys to static filenames, or force paths to only load from a static assets folder.",
+                code: {
+                    low: `<?php\n$file = $_GET[ 'page' ];\ninclude( $file );\n?>`,
+                    medium: `<?php\n$file = $_GET[ 'page' ];\n// Naive replace filters\n$file = str_replace( array( "http://", "https://" ), "", $file );\n$file = str_replace( array( "../", "..\\" ), "", $file );\ninclude( $file );\n?>`,
+                    high: `<?php\n$file = $_GET[ 'page' ];\n// Whitelist file prefix matching\nif( !fnmatch( "file*", $file ) && $file != "include.php" ) {\n    echo "ERROR: File not found";\n    exit;\n}\ninclude( $file );\n?>`,
+                    impossible: `<?php\n$file = $_GET[ 'page' ];\n// Strict Whitelist Mapping\nif( $file != "include.php" && $file != "file1.php" && $file != "file2.php" && $file != "file3.php" ) {\n    echo "ERROR: File not found";\n    exit;\n}\ninclude( $file );\n?>`
+                }
+            },
+            upload: {
+                title: "Unrestricted File Upload",
+                subdir: "DVWA/vulnerabilities/upload/",
+                severity: "HIGH SEVERITY",
+                severityClass: "bg-red-500/10 text-red-400 border-red-500/20",
+                desc: `<p>Unrestricted File Upload allows attackers to upload files containing executable scripts (like PHP shells) to the server web-root, leading to full Remote Code Execution (RCE).</p>`,
+                flaw: "Files are moved straight to the uploads directory without verification: <code>move_uploaded_file($_FILES['uploaded']['tmp_name'], $target_path)</code>.",
+                remediation: "Verify uploaded files against a whitelist of valid image MIME types/extensions, rename files with random hashes, and turn off script execution in the uploads folder.",
+                code: {
+                    low: `<?php\nif( isset( $_POST[ 'Upload' ] ) ) {\n    $target_path  = DVWA_WEB_PAGE_TO_ROOT . "hackable/uploads/";\n    $target_path .= basename( $_FILES[ 'uploaded' ][ 'name' ] );\n    move_uploaded_file( $_FILES[ 'uploaded' ][ 'tmp_name' ], $target_path );\n}?>`,
+                    medium: `<?php\nif( isset( $_POST[ 'Upload' ] ) ) {\n    // Naive MIME-Type checks\n    if (($_FILES['uploaded']['type'] == "image/jpeg") && ($_FILES['uploaded']['size'] < 100000)) {\n        // Uploads file...\n    }\n}?>`,
+                    high: `<?php\n// High level uses image library functions (getimagesize) and file extension checks...\n?>`,
+                    impossible: `<?php\nif( isset( $_POST[ 'Upload' ] ) ) {\n    checkToken( \$_POST[ 'user_token' ], \$_SESSION[ 'session_token' ], 'index.php' );\n    // Re-encodes image to strip PHP metadata, checks extensions, and renames file\n}?>`
+                }
+            },
+            xss_r: {
+                title: "Reflected XSS",
+                subdir: "DVWA/vulnerabilities/xss_r/",
+                severity: "MEDIUM SEVERITY",
+                severityClass: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                desc: `<p>Reflected Cross-Site Scripting (XSS) arises when an application includes user-supplied data in an immediate HTTP response without validation, executing scripts in the user's browser context.</p>`,
+                flaw: "Input parameters are printed raw to the screen: <code>echo 'Hello ' . $_GET['name']</code>.",
+                remediation: "Encode inputs for the HTML context using <code>htmlspecialchars()</code> before outputting them to the page.",
+                code: {
+                    low: `<?php\nif( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {\n    echo '<pre>Hello ' . $_GET[ 'name' ] . '</pre>';\n}?>`,
+                    medium: `<?php\nif( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {\n    // Naive regex replacement\n    $name = str_replace( '<script>', '', $_GET[ 'name' ] );\n    echo '<pre>Hello ' . $name . '</pre>';\n}?>`,
+                    high: `<?php\n// High level uses complex regex replacements...\n?>`,
+                    impossible: `<?php\nif( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {\n    // HTML context encoding\n    $name = htmlspecialchars( $_GET[ 'name' ] );\n    echo '<pre>Hello ' . $name . '</pre>';\n}?>`
+                }
+            },
+            xss_s: {
+                title: "Stored XSS",
+                subdir: "DVWA/vulnerabilities/xss_s/",
+                severity: "MEDIUM SEVERITY",
+                severityClass: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                desc: `<p>Stored XSS occurs when malicious scripts are saved permanently in a datastore (like guestbook comments) and served to subsequent users visiting the site.</p>`,
+                flaw: "Unsanitized user inputs are stored directly in DB tables, and rendered to the page without escaping, infecting all visitors.",
+                remediation: "Apply HTML entity encoding before rendering, and sanitize HTML markup inputs using secure HTML parsing libraries.",
+                code: {
+                    low: `<?php\n// Saves name/message straight to database and outputs raw HTML...\n?>`,
+                    medium: `<?php\n// Replaces <script> tags naively in the message, but forgets name field\n?>`,
+                    high: `<?php\n// Replaces <script> case-insensitively using preg_replace but leaves bypasses...\n?>`,
+                    impossible: `<?php\n// Uses htmlspecialchars() + Prepared statements for storage...\n?>`
+                }
+            },
+            brute: {
+                title: "Brute Force",
+                subdir: "DVWA/vulnerabilities/brute/",
+                severity: "LOW SEVERITY",
+                severityClass: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+                desc: `<p>Brute forcing involves attempting combinations of usernames and passwords to guess correct accounts, made easy if lockouts or CAPTCHAs are missing.</p>`,
+                flaw: "Login endpoints process unlimited failed requests without rate limits, account lockouts, or delay scripts.",
+                remediation: "Implement account lockouts after consecutive failed logins, rate limit endpoints (IP-based), and enforce strong password policies.",
+                code: {
+                    low: `<?php\n// Queries password directly in DB without execution delays...\n?>`,
+                    medium: `<?php\n// Adds sleep(2) on failure, but is still vulnerable to automated tools...\n?>`,
+                    high: `<?php\n// Adds sleep(rand(0, 3)) and anti-CSRF token checks...\n?>`,
+                    impossible: `<?php\n// Secure lockout account limits: locks accounts for 15 minutes after 3 failures\n?>`
+                }
+            },
+            weak_id: {
+                title: "Weak Session IDs",
+                subdir: "DVWA/vulnerabilities/weak_id/",
+                severity: "MEDIUM SEVERITY",
+                severityClass: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                desc: `<p>Weak Session IDs occur when session identifiers are predictable (sequential numbers or MD5 hashes of incremental time counters), allowing session hijacking.</p>`,
+                flaw: "Session cookies are generated using simple incremental logic: <code>dvwaSession = $lastSessionId + 1</code>.",
+                remediation: "Use secure, cryptographically random number generators (CSPRNGs) provided by standard web frameworks for session management.",
+                code: {
+                    low: `<?php\n$cookie_value = isset($_COOKIE['last_session_id']) ? $_COOKIE['last_session_id'] + 1 : 1;\nsetcookie("dvwaSession", $cookie_value);\n?>`,
+                    medium: `<?php\n$cookie_value = time(); // Epoch timestamp is easily guessable!\nsetcookie("dvwaSession", $cookie_value);\n?>`,
+                    high: `<?php\n$cookie_value = md5($temp_id); // MD5 of sequential IDs is still predictable!\nsetcookie("dvwaSession", $cookie_value);\n?>`,
+                    impossible: `<?php\n// Generates cookies using secure random bytes:\n$cookie_value = bin2hex(random_bytes(32));\nsetcookie("dvwaSession", $cookie_value);\n?>`
+                }
+            }
+        };
+
+        let currentVulnKey = 'exec';
+        let currentCodeLevel = 'low';
+
+        function selectVulnerability(key) {
+            currentVulnKey = key;
+            const data = vulnerabilitiesData[key];
+            if (!data) return;
+
+            // Update UI buttons styling
+            const buttons = document.querySelectorAll('.vuln-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-danger-900/40', 'text-danger-400', 'border-danger-500/20');
+                btn.classList.add('text-slate-400', 'hover:text-white');
+            });
+            // highlight the selected button
+            // We search for buttons having onclick attribute matching the category key
+            const targetBtn = Array.from(buttons).find(btn => btn.getAttribute('onclick')?.includes(key));
+            if (targetBtn) {
+                targetBtn.classList.add('bg-danger-900/40', 'text-danger-400', 'border-danger-500/20');
+                targetBtn.classList.remove('text-slate-400', 'hover:text-white');
+            }
+
+            // Update panels
+            document.getElementById('vuln-display-title').innerText = data.title;
+            document.getElementById('vuln-display-subdir').innerText = 'Subdirectory: ' + data.subdir;
+            
+            const severitySpan = document.getElementById('vuln-severity');
+            severitySpan.innerText = data.severity;
+            severitySpan.className = "px-2.5 py-1 rounded text-xs font-bold font-mono border " + data.severityClass;
+
+            document.getElementById('vuln-display-desc').innerHTML = data.desc;
+            document.getElementById('vuln-flaw-desc').innerText = data.flaw;
+            document.getElementById('vuln-prevention-desc').innerText = data.remediation;
+
+            // Reset code level to low when switching categories
+            switchCodeLevel('low');
+        }
+
+        function switchCodeLevel(level) {
+            currentCodeLevel = level;
+            const data = vulnerabilitiesData[currentVulnKey];
+            if (!data) return;
+
+            // Update buttons styling
+            const buttons = document.querySelectorAll('.code-lvl-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-danger-600', 'text-white', 'shadow-sm');
+                btn.classList.add('text-slate-400', 'hover:text-white');
+            });
+            document.getElementById('code-btn-' + level).classList.add('bg-danger-600', 'text-white', 'shadow-sm');
+            document.getElementById('code-btn-' + level).classList.remove('text-slate-400', 'hover:text-white');
+
+            // Render PHP code
+            const codeBlock = document.getElementById('vuln-code-block');
+            const codeContent = data.code[level] || '// Code snippet not available for this level.';
+            
+            // Safe escape characters
+            codeBlock.innerHTML = `<code>${escapeHtml(codeContent)}</code>`;
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Tab Switching
+        function switchTab(tabName) {
+            const sections = document.querySelectorAll('.tab-section');
+            sections.forEach(s => s.classList.add('hidden'));
+            
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.classList.remove('bg-brand-primary', 'text-white', 'shadow-md');
+                btn.classList.add('text-slate-400', 'hover:text-white');
+            });
+
+            document.getElementById('section-' + tabName).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-' + tabName);
+            activeBtn.classList.add('bg-brand-primary', 'text-white', 'shadow-md');
+            activeBtn.classList.remove('text-slate-400', 'hover:text-white');
+        }
+
+        // Initialize selections
+        selectEnvNode('web');
+        selectVulnerability('exec');
+    </script>
+</body>
+</html>

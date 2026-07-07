@@ -107,6 +107,10 @@ async def get_workspace_status(
                 message="Workspace expired and was automatically stopped"
             )
         
+        # Update heartbeat
+        workspace.last_active = datetime.utcnow()
+        await db.commit()
+
         return WorkspaceStatusResponse(
             has_active_workspace=True,
             workspace=workspace_to_response(workspace, settings.proxy_domain),
@@ -187,7 +191,8 @@ async def start_workspace(
         status=WorkspaceStatus.RUNNING.value,
         access_url=access_url,
         access_port=container_info["access_port"],
-        expires_at=expires_at
+        expires_at=expires_at,
+        last_active=datetime.utcnow()
     )
     db.add(workspace)
     await db.commit()
@@ -232,9 +237,9 @@ async def stop_workspace(
     workspace.status = WorkspaceStatus.STOPPING.value
     await db.commit()
     
-    # Stop and remove container
-    container_manager.stop_container(workspace.container_id)
-    container_manager.remove_container(workspace.container_id)
+    # Stop and remove container asynchronously
+    import asyncio
+    await asyncio.to_thread(container_manager.remove_container, workspace.container_id, force=True)
     
     # Update workspace record
     workspace.status = WorkspaceStatus.STOPPED.value

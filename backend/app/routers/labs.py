@@ -2,6 +2,7 @@
 Lab catalog and session routes.
 """
 
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -27,6 +28,7 @@ from ..schemas.lab import (
 )
 from ..services.container_manager import get_container_manager
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/labs", tags=["Labs"])
 
@@ -231,6 +233,30 @@ async def get_active_lab_session(
     if session.attacker_container_id:
         container_status = container_manager.get_container_status(session.attacker_container_id)
         if not container_status or not container_status.get("running"):
+            # Attacker container is dead, clean up everything (including target containers)
+            container_ids = [session.attacker_container_id]
+            if session.target_container_ids:
+                container_ids.extend(
+                    cid.strip()
+                    for cid in session.target_container_ids.split(",")
+                    if cid.strip()
+                )
+            
+            import asyncio
+            tasks = [
+                asyncio.to_thread(container_manager.remove_container, cid, force=True)
+                for cid in container_ids
+            ]
+            try:
+                await asyncio.gather(*tasks)
+            except Exception as e:
+                logger.error(f"Error cleaning up orphaned containers for dead session: {e}", exc_info=True)
+            if session.docker_network:
+                try:
+                    await asyncio.to_thread(container_manager.remove_session_network, session.docker_network)
+                except Exception as e:
+                    logger.error(f"Error removing session network for dead session: {e}", exc_info=True)
+
             session.status = LabSessionStatus.STOPPED.value
             session.stopped_at = datetime.utcnow()
             await db.commit()
@@ -239,6 +265,10 @@ async def get_active_lab_session(
                 session=None,
                 message="Previous lab session has stopped",
             )
+
+    # Update heartbeat
+    session.last_active = datetime.utcnow()
+    await db.commit()
 
     return ActiveLabSessionResponse(
         has_active_session=True,
@@ -272,9 +302,8 @@ async def stop_lab_session(
             detail="Active lab session not found",
         )
 
-    session.status = LabSessionStatus.STOPPING.value
-    await db.commit()
-
+    # Extract container/network identifiers before updating status to avoid
+    # session expiration / lazy-load issues
     container_ids = []
     if session.attacker_container_id:
         container_ids.append(session.attacker_container_id)
@@ -284,10 +313,26 @@ async def stop_lab_session(
             for container_id in session.target_container_ids.split(",")
             if container_id.strip()
         )
+    docker_network = session.docker_network
 
-    for container_id in container_ids:
-        container_manager.stop_container(container_id)
-        container_manager.remove_container(container_id)
+    session.status = LabSessionStatus.STOPPING.value
+    await db.commit()
+
+    import asyncio
+    tasks = [
+        asyncio.to_thread(container_manager.remove_container, cid, force=True)
+        for cid in container_ids
+    ]
+    try:
+        await asyncio.gather(*tasks)
+    except Exception as e:
+        logger.error(f"Error during lab container force-removal: {e}", exc_info=True)
+
+    if docker_network:
+        try:
+            await asyncio.to_thread(container_manager.remove_session_network, docker_network)
+        except Exception as e:
+            logger.error(f"Error removing session network on stop: {e}", exc_info=True)
 
     session.status = LabSessionStatus.STOPPED.value
     session.stopped_at = datetime.utcnow()
@@ -367,7 +412,8 @@ async def start_room(
                 user_id=current_user.id,
                 room_slug=room.slug,
                 image=room.template.image,
-                limits=limits,
+                cpu=room.template.attacker_cpu,
+                memory=room.template.attacker_memory,
                 exposed_port=exposed_port,
                 github_token=None,
             )
@@ -375,6 +421,7 @@ async def start_room(
             attacker_container_name = container_info["container_name"]
             target_container_ids = None
             access_port = container_info["access_port"]
+            docker_network = None
         elif room.template.access_mode == LabAccessMode.WEB_TARGET.value:
             image_parts = [part.strip() for part in room.template.image.split("|", 1)]
             if len(image_parts) != 2:
@@ -384,15 +431,19 @@ async def start_room(
                 room_slug=room.slug,
                 attacker_image=image_parts[0],
                 target_image=image_parts[1],
-                limits=limits,
+                attacker_cpu=room.template.attacker_cpu,
+                attacker_memory=room.template.attacker_memory,
+                target_cpu=room.template.target_cpu,
+                target_memory=room.template.target_memory,
                 attacker_port=exposed_port,
-                target_port=8000,
+                target_port=room.template.target_port,
                 github_token=None,
             )
             attacker_container_id = container_info["attacker_container_id"]
             attacker_container_name = container_info["attacker_container_name"]
             target_container_ids = container_info["target_container_id"]
             access_port = container_info["access_port"]
+            docker_network = container_info["network_name"]
         else:
             raise ValueError("Only terminal and web-target labs are supported in this phase.")
     except Exception as exc:
@@ -411,7 +462,9 @@ async def start_room(
         attacker_container_id=attacker_container_id,
         target_container_ids=target_container_ids,
         network_name=attacker_container_name,
+        docker_network=docker_network,
         access_url=access_url,
+        last_active=datetime.utcnow(),
     )
     db.add(session)
     await db.commit()

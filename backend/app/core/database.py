@@ -54,6 +54,36 @@ async def create_db_and_tables():
                 if column_name not in existing_columns:
                     await conn.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))
 
+            # Dynamic migrations for lab_sessions
+            result_labs = await conn.execute(text("PRAGMA table_info(lab_sessions)"))
+            existing_labs_columns = {row[1] for row in result_labs.fetchall()}
+            if "last_active" not in existing_labs_columns:
+                await conn.execute(text("ALTER TABLE lab_sessions ADD COLUMN last_active DATETIME"))
+                await conn.execute(text("UPDATE lab_sessions SET last_active = CURRENT_TIMESTAMP"))
+            if "docker_network" not in existing_labs_columns:
+                await conn.execute(text("ALTER TABLE lab_sessions ADD COLUMN docker_network VARCHAR(120)"))
+
+            # Dynamic migrations for lab_templates (per-container minimal resource footprint)
+            result_templates = await conn.execute(text("PRAGMA table_info(lab_templates)"))
+            existing_template_columns = {row[1] for row in result_templates.fetchall()}
+            template_columns = {
+                "target_port": "INTEGER DEFAULT 8000",
+                "attacker_cpu": "REAL DEFAULT 0.25",
+                "attacker_memory": "INTEGER DEFAULT 256",
+                "target_cpu": "REAL DEFAULT 0.25",
+                "target_memory": "INTEGER DEFAULT 256",
+            }
+            for column_name, column_def in template_columns.items():
+                if column_name not in existing_template_columns:
+                    await conn.execute(text(f"ALTER TABLE lab_templates ADD COLUMN {column_name} {column_def}"))
+
+            # Dynamic migrations for workspaces
+            result_workspaces = await conn.execute(text("PRAGMA table_info(workspaces)"))
+            existing_workspaces_columns = {row[1] for row in result_workspaces.fetchall()}
+            if "last_active" not in existing_workspaces_columns:
+                await conn.execute(text("ALTER TABLE workspaces ADD COLUMN last_active DATETIME"))
+                await conn.execute(text("UPDATE workspaces SET last_active = CURRENT_TIMESTAMP"))
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """

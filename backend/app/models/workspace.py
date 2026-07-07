@@ -5,12 +5,15 @@ Workspace model for tracking active container sessions.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..core.database import Base
+
+if TYPE_CHECKING:
+    from .user import User
 
 
 class WorkspaceStatus(str, Enum):
@@ -60,6 +63,11 @@ class Workspace(Base):
         nullable=True
     )
     started_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False
+    )
+    last_active: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now(),
         nullable=False

@@ -4,12 +4,17 @@ User model for storing local and optional GitHub identity data.
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..core.database import Base
+
+if TYPE_CHECKING:
+    from .user_limits import UserLimits
+    from .workspace import Workspace
+    from .lab import LabSession, ChallengeSubmission
 
 
 class User(Base):
